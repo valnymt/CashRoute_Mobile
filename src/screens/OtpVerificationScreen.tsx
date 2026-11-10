@@ -31,9 +31,19 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
 
         {/* Step indicator */}
         <View style={styles.stepRow}>
-          <View style={[styles.stepDot, styles.activeStep]} />
+          <View style={styles.stepItem}>
+            <View style={[styles.stepNumber, styles.activeStep]}>
+              <Text style={styles.stepNumberText}>1</Text>
+            </View>
+            <Text style={[styles.stepLabel, styles.activeStepLabel]}>Pickup</Text>
+          </View>
           <View style={[styles.stepLine, currentStep >= 2 && styles.activeLine]} />
-          <View style={[styles.stepDot, currentStep >= 2 && styles.activeStep]} />
+          <View style={styles.stepItem}>
+            <View style={[styles.stepNumber, currentStep >= 2 && styles.activeStep]}>
+              <Text style={[styles.stepNumberText, currentStep < 2 && styles.inactiveStepText]}>2</Text>
+            </View>
+            <Text style={[styles.stepLabel, currentStep >= 2 && styles.activeStepLabel]}>Drop-off</Text>
+          </View>
         </View>
 
         <View style={styles.content}>
@@ -45,17 +55,28 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
         </View>
 
         {step === 'request' ? (
-          <PrimaryButton
-            text="Request OTP"
-            onPress={onRequestOtp}
-            style={{ marginBottom: 24 }}
-          />
+          <>
+            <PrimaryButton
+              text="Request OTP"
+              onPress={onRequestOtp}
+              style={{ marginBottom: 8 }}
+            />
+            <Text style={styles.footerText}>
+              Max 5 attempts. Every attempt is recorded.
+            </Text>
+            <View style={{ height: 16 }} />
+          </>
         ) : (
-          <PrimaryButton
-            text="Verify"
-            onPress={onVerify}
-            style={{ marginBottom: 24 }}
-          />
+          <>
+            <PrimaryButton
+              text="Verify"
+              onPress={onVerify}
+              style={{ marginBottom: 8 }}
+            />
+            <Text style={styles.demoErrorRed}>Demo: wrong code</Text>
+            <Text style={styles.demoErrorRed}>Demo: code expired</Text>
+            <View style={{ height: 16 }} />
+          </>
         )}
       </View>
     </AuraBackground>
@@ -89,6 +110,7 @@ const OtpRequestContent: React.FC<{ type: OtpType }> = ({ type }) => {
 
       <GlassCard>
         <View style={styles.contactCard}>
+          <Text style={styles.sendingToLabel}>SENDING TO</Text>
           <Text style={styles.contactName}>{contactName}</Text>
           <Text style={styles.contactInfo}>{contactInfo}</Text>
         </View>
@@ -174,20 +196,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 16,
   },
-  stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Colors.CardBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  stepNumberText: {
+    ...Typography.labelSmall,
+    color: Colors.White,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  inactiveStepText: {
+    color: Colors.TextDim,
+  },
+  stepLabel: {
+    ...Typography.bodySmall,
+    color: Colors.TextDim,
   },
   activeStep: {
     backgroundColor: Colors.PrimaryGreen,
   },
+  activeStepLabel: {
+    color: Colors.White,
+  },
   stepLine: {
-    width: 60,
+    width: 40,
     height: 2,
     backgroundColor: Colors.CardBorder,
-    marginHorizontal: 8,
+    marginHorizontal: 12,
   },
   activeLine: {
     backgroundColor: Colors.PrimaryGreen,
@@ -223,6 +268,12 @@ const styles = StyleSheet.create({
     color: Colors.TextSecondary,
     textAlign: 'center',
     marginTop: 8,
+  },
+  sendingToLabel: {
+    ...Typography.labelSmall,
+    color: Colors.PrimaryGreen,
+    letterSpacing: 1.5,
+    marginBottom: 4,
   },
   contactCard: {
     padding: 16,
@@ -300,5 +351,16 @@ const styles = StyleSheet.create({
   attemptsText: {
     ...Typography.bodySmall,
     color: Colors.TextSecondary,
+  },
+  footerText: {
+    ...Typography.bodySmall,
+    color: Colors.TextDim,
+    textAlign: 'center',
+  },
+  demoErrorRed: {
+    ...Typography.bodyMedium,
+    color: Colors.AccentRed,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

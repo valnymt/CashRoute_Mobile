@@ -18,14 +18,14 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
         <TopBar title="Request details" onBackClick={onBackClick} />
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Amount card */}
+          {/* Request ID + Time slot */}
           <GlassCard>
             <View style={styles.cardContent}>
-              <Text style={styles.label}>AMOUNT</Text>
+              <Text style={styles.requestId}>REQ-1048</Text>
               <Text style={styles.amount}>MMK 250,000</Text>
-              <View style={styles.statusRow}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusText}>Pending pickup</Text>
+              <View style={styles.timeSlotRow}>
+                <Text style={styles.timeSlotLabel}>Requested time slot</Text>
+                <Text style={styles.timeSlotValue}>14 Oct · 10:00 – 12:00</Text>
               </View>
             </View>
           </GlassCard>
@@ -35,20 +35,39 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
           {/* Route card */}
           <GlassCard>
             <View style={styles.cardContent}>
-              <Text style={styles.sectionLabel}>Route</Text>
+              <Text style={styles.sectionLabel}>ROUTE</Text>
+              <View style={{ height: 12 }} />
+
+              {/* Pickup */}
               <View style={styles.routeItem}>
-                <View style={[styles.routeDot, { backgroundColor: Colors.PrimaryGreen }]} />
+                <View style={styles.markerContainer}>
+                  <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
+                    <Text style={styles.markerLetter}>A</Text>
+                  </View>
+                </View>
                 <View style={styles.routeTextContainer}>
+                  <Text style={styles.routeType}>PICKUP</Text>
                   <Text style={styles.routeTitle}>Orchard Branch</Text>
-                  <Text style={styles.routeAddr}>238 Orchard Rd, Yangon</Text>
+                  <Text style={styles.routeAddr}>138 Orchard Rd, Myanmar</Text>
                 </View>
               </View>
-              <View style={styles.routeLine} />
+
+              {/* Connector line */}
+              <View style={styles.routeConnector}>
+                <View style={styles.routeLine} />
+              </View>
+
+              {/* Drop-off */}
               <View style={styles.routeItem}>
-                <View style={[styles.routeDot, { backgroundColor: Colors.PurpleAccent }]} />
+                <View style={styles.markerContainer}>
+                  <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
+                    <Text style={styles.markerLetter}>B</Text>
+                  </View>
+                </View>
                 <View style={styles.routeTextContainer}>
+                  <Text style={styles.routeType}>DROP-OFF</Text>
                   <Text style={styles.routeTitle}>HQ Cash Centre</Text>
-                  <Text style={styles.routeAddr}>1 Raffles Quay, Yangon</Text>
+                  <Text style={styles.routeAddr}>1 Raffles Quay, Myanmar</Text>
                 </View>
               </View>
             </View>
@@ -56,14 +75,27 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
 
           <View style={{ height: 12 }} />
 
-          {/* Details card */}
+          {/* Remarks card */}
           <GlassCard>
             <View style={styles.cardContent}>
-              <Text style={styles.sectionLabel}>Details</Text>
-              <DetailRow label="Request" value="REQ-1048" />
-              <DetailRow label="Distance" value="1.8 km" />
-              <DetailRow label="Est. time" value="6 min" />
-              <DetailRow label="Denominations" value="10k x 15, 5k x 20" />
+              <Text style={styles.remarksLabel}>Remarks</Text>
+              <Text style={styles.remarksText}>
+                Daily surplus cash. Contact the branch manager on arrival.
+              </Text>
+            </View>
+          </GlassCard>
+
+          <View style={{ height: 12 }} />
+
+          {/* Status */}
+          <GlassCard>
+            <View style={styles.cardContent}>
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>Status</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>Assigned</Text>
+                </View>
+              </View>
             </View>
           </GlassCard>
 
@@ -71,7 +103,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
         </ScrollView>
 
         <PrimaryButton
-          text="Start trip"
+          text="Accept Assignment"
           onPress={onStartTrip}
           style={{ marginBottom: 24 }}
         />
@@ -79,13 +111,6 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
     </AuraBackground>
   );
 };
-
-const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.detailRow}>
-    <Text style={styles.detailLabel}>{label}</Text>
-    <Text style={styles.detailValue}>{value}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -100,9 +125,9 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 20,
   },
-  label: {
+  requestId: {
     ...Typography.labelMedium,
-    color: Colors.PrimaryGreen,
+    color: Colors.TextSecondary,
     letterSpacing: 1.5,
   },
   amount: {
@@ -110,40 +135,59 @@ const styles = StyleSheet.create({
     color: Colors.White,
     marginTop: 4,
   },
-  statusRow: {
+  timeSlotRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.09)',
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.PrimaryGreen,
-    marginRight: 8,
+  timeSlotLabel: {
+    ...Typography.bodySmall,
+    color: Colors.TextSecondary,
   },
-  statusText: {
-    ...Typography.bodyMedium,
-    color: Colors.PrimaryGreen,
-  },
-  sectionLabel: {
-    ...Typography.titleMedium,
+  timeSlotValue: {
+    ...Typography.bodySmall,
     color: Colors.White,
     fontWeight: '600',
-    marginBottom: 12,
+  },
+  sectionLabel: {
+    ...Typography.labelMedium,
+    color: Colors.PrimaryGreen,
+    letterSpacing: 1.5,
   },
   routeItem: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  markerContainer: {
+    width: 32,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  routeMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+  markerLetter: {
+    ...Typography.labelLarge,
+    color: Colors.White,
+    fontWeight: '700',
+    fontSize: 13,
   },
   routeTextContainer: {
     flex: 1,
+  },
+  routeType: {
+    ...Typography.labelSmall,
+    color: Colors.TextDim,
+    letterSpacing: 1.2,
+    marginBottom: 2,
   },
   routeTitle: {
     ...Typography.bodyMedium,
@@ -154,25 +198,42 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.TextSecondary,
   },
+  routeConnector: {
+    paddingLeft: 15,
+    height: 28,
+    justifyContent: 'center',
+  },
   routeLine: {
     width: 2,
-    height: 24,
+    height: 20,
     backgroundColor: Colors.CardBorder,
-    marginLeft: 5,
-    marginVertical: 4,
   },
-  detailRow: {
+  remarksLabel: {
+    ...Typography.bodySmall,
+    color: Colors.TextSecondary,
+    marginBottom: 6,
+  },
+  remarksText: {
+    ...Typography.bodyMedium,
+    color: Colors.White,
+  },
+  statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    alignItems: 'center',
   },
-  detailLabel: {
+  statusLabel: {
     ...Typography.bodyMedium,
     color: Colors.TextSecondary,
   },
-  detailValue: {
-    ...Typography.bodyMedium,
-    color: Colors.White,
-    fontWeight: '600',
+  statusBadge: {
+    backgroundColor: 'rgba(150, 215, 76, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    ...Typography.labelSmall,
+    color: Colors.PrimaryGreen,
   },
 });

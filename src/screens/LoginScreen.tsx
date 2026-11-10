@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { AuraBackground, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 
@@ -19,23 +20,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [attemptsLeft, setAttemptsLeft] = useState(5);
 
   const handleSignIn = () => {
     if (username.trim() && password.trim()) {
       onLoginSuccess();
     } else {
-      const remaining = attemptsLeft - 1;
-      setAttemptsLeft(remaining);
-      if (remaining <= 0) {
-        setLoginError(
-          'Your account has been locked due to too many failed attempts. Contact your administrator.',
-        );
-      } else {
-        setLoginError(
-          `Incorrect username or password. ${remaining} attempts left before your account is locked.`,
-        );
-      }
+      setLoginError('Demo: wrong password');
     }
   };
 
@@ -44,8 +34,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       <View style={styles.container}>
         {/* Logo */}
         <View style={styles.logoRow}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>CR</Text>
+          <View style={styles.logoIconContainer}>
+            <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+              <Path
+                d="M22 4L6 12v10c0 11 7 18 16 20 9-2 16-9 16-20V12L22 4z"
+                fill={Colors.PrimaryGreen}
+                opacity={0.15}
+              />
+              <Path
+                d="M22 6L8 13v9c0 10 6.3 16.2 14 18 7.7-1.8 14-8 14-18v-9L22 6z"
+                stroke={Colors.PrimaryGreen}
+                strokeWidth={2}
+                fill="none"
+              />
+              <Path
+                d="M16 22l4 4 8-8"
+                stroke={Colors.PrimaryGreen}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </Svg>
           </View>
           <View style={styles.logoTextContainer}>
             <Text style={styles.appName}>CashRoute</Text>
@@ -58,13 +68,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <Text style={styles.signInSubtitle}>
           For authorized delivery team members only.
         </Text>
-
-        {/* Error banner */}
-        {loginError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{loginError}</Text>
-          </View>
-        )}
 
         {/* Username */}
         <Text style={styles.fieldLabel}>Username</Text>
@@ -101,6 +104,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
         <PrimaryButton text="Sign in" onPress={handleSignIn} />
 
+        {loginError && (
+          <Text style={styles.errorTextCenter}>{loginError}</Text>
+        )}
+
         <View style={{ flex: 1 }} />
 
         {/* Footer */}
@@ -123,18 +130,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoBox: {
+  logoIconContainer: {
     width: 50,
     height: 50,
-    backgroundColor: Colors.Black,
-    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  logoText: {
-    color: Colors.PrimaryGreen,
-    fontSize: 18,
-    fontWeight: '700',
   },
   logoTextContainer: {
     marginLeft: 12,
@@ -159,17 +159,11 @@ const styles = StyleSheet.create({
     ...Typography.bodyMedium,
     color: Colors.TextSecondary,
   },
-  errorBanner: {
-    marginTop: 16,
-    backgroundColor: 'rgba(255, 82, 82, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 82, 82, 0.4)',
-    borderRadius: 12,
-    padding: 16,
-  },
-  errorText: {
+  errorTextCenter: {
     ...Typography.bodyMedium,
     color: Colors.AccentRed,
+    textAlign: 'center',
+    marginTop: 16,
   },
   fieldLabel: {
     ...Typography.bodyMedium,

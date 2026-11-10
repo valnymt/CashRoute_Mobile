@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, BottomNavBar } from '../components';
 import { Colors, Typography } from '../theme';
 import type { BottomNavItem } from '../components';
@@ -17,70 +18,121 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress }) => {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>Good morning</Text>
-              <Text style={styles.name}>John Driver</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>My Assignments</Text>
+              <Text style={styles.subtitle}>Ngeyeemon · Team A (Driver)</Text>
             </View>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>JD</Text>
+            <View style={styles.headerIcons}>
+              <View style={styles.bellContainer}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z"
+                    stroke={Colors.White}
+                    strokeWidth={2}
+                    fill="none"
+                  />
+                  <Path
+                    d="M13.73 21a2 2 0 0 1-3.46 0"
+                    stroke={Colors.White}
+                    strokeWidth={2}
+                    fill="none"
+                  />
+                </Svg>
+                <View style={styles.notifDot} />
+              </View>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>NYM</Text>
+              </View>
             </View>
           </View>
 
-          {/* Status card */}
-          <GlassCard style={{ marginTop: 16 }}>
-            <View style={styles.statusCard}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>On Duty · Shift ends 6:00 PM</Text>
+          {/* New assignment banner */}
+          <TouchableOpacity onPress={onRequestPress} activeOpacity={0.8}>
+            <View style={styles.newAssignmentBanner}>
+              <View style={styles.bannerLeft}>
+                <View style={styles.greenDotSmall} />
+                <View>
+                  <Text style={styles.bannerTitle}>New assignment</Text>
+                  <Text style={styles.bannerSub}>REQ-1048 · Deposit · tap to view</Text>
+                </View>
+              </View>
+              <Text style={styles.bannerChevron}>›</Text>
             </View>
-          </GlassCard>
-
-          {/* Section title */}
-          <Text style={styles.sectionTitle}>My Assignments</Text>
+          </TouchableOpacity>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Request card */}
+            {/* Current Trip */}
+            <Text style={styles.sectionLabel}>CURRENT TRIP</Text>
+
             <TouchableOpacity onPress={onRequestPress} activeOpacity={0.8}>
               <GlassCard style={{ marginBottom: 12 }}>
-                <View style={styles.requestCard}>
-                  <View style={styles.requestHeader}>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardHeader}>
                     <Text style={styles.requestId}>REQ-1048</Text>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>Pending pickup</Text>
+                    <View style={styles.depositBadge}>
+                      <Text style={styles.depositBadgeText}>Deposit</Text>
                     </View>
                   </View>
+
+                  <Text style={styles.amountLabel}>Amount</Text>
                   <Text style={styles.amount}>MMK 250,000</Text>
-                  <View style={styles.routeRow}>
-                    <Text style={styles.routeText}>Orchard Branch → HQ Cash Centre</Text>
+
+                  <View style={{ height: 12 }} />
+
+                  {/* Route */}
+                  <View style={styles.routeItem}>
+                    <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
+                      <Text style={styles.markerLetter}>A</Text>
+                    </View>
+                    <View style={styles.routeTextBlock}>
+                      <Text style={styles.routeType}>PICKUP</Text>
+                      <Text style={styles.routePlace}>Orchard Branch</Text>
+                    </View>
                   </View>
-                  <View style={styles.metaRow}>
-                    <Text style={styles.metaText}>1.8 km</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Text style={styles.metaText}>6 min</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Text style={styles.metaText}>ETA 10:30 AM</Text>
+                  <View style={styles.routeItem}>
+                    <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
+                      <Text style={styles.markerLetter}>B</Text>
+                    </View>
+                    <View style={styles.routeTextBlock}>
+                      <Text style={styles.routeType}>DROP-OFF</Text>
+                      <Text style={styles.routePlace}>HQ Cash Centre</Text>
+                    </View>
                   </View>
+
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Status</Text>
+                    <View style={styles.assignedBadge}>
+                      <Text style={styles.assignedBadgeText}>Assigned</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ height: 12 }} />
+
+                  <TouchableOpacity style={styles.viewDetailsBtn} onPress={onRequestPress}>
+                    <Text style={styles.viewDetailsText}>View Details</Text>
+                  </TouchableOpacity>
                 </View>
               </GlassCard>
             </TouchableOpacity>
 
-            {/* Second request card */}
+            {/* Upcoming */}
+            <Text style={styles.sectionLabel}>UPCOMING</Text>
+
             <GlassCard style={{ marginBottom: 12 }}>
-              <View style={styles.requestCard}>
-                <View style={styles.requestHeader}>
-                  <Text style={styles.requestId}>REQ-1047</Text>
-                  <View style={[styles.badge, styles.completedBadge]}>
-                    <Text style={[styles.badgeText, styles.completedText]}>Completed</Text>
+              <View style={styles.upcomingCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.upcomingId}>REQ-1053 · Withdrawal</Text>
+                  <View style={styles.assignedBadge}>
+                    <Text style={styles.assignedBadgeText}>Assigned</Text>
                   </View>
                 </View>
-                <Text style={styles.amount}>MMK 500,000</Text>
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeText}>Marina Branch → HQ Cash Centre</Text>
-                </View>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>Delivered at 9:15 AM</Text>
-                </View>
+                <Text style={styles.upcomingMeta}>
+                  SGD 120,000 · HQ → Tampines · 15 Oct, 13:00
+                </Text>
               </View>
             </GlassCard>
+
+            <View style={{ height: 16 }} />
           </ScrollView>
         </View>
 
@@ -104,13 +156,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  greeting: {
-    ...Typography.bodyMedium,
-    color: Colors.TextSecondary,
-  },
-  name: {
+  title: {
     ...Typography.headlineLarge,
     color: Colors.White,
+    fontWeight: '700',
+  },
+  subtitle: {
+    ...Typography.bodySmall,
+    color: Colors.TextSecondary,
+    marginTop: 2,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bellContainer: {
+    position: 'relative',
+  },
+  notifDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.PrimaryGreen,
   },
   avatar: {
     width: 44,
@@ -123,80 +194,162 @@ const styles = StyleSheet.create({
   avatarText: {
     ...Typography.labelLarge,
     color: Colors.White,
+    fontSize: 13,
+    fontWeight: '700',
   },
-  statusCard: {
+  newAssignmentBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(150, 215, 76, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(150, 215, 76, 0.25)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 16,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  bannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  greenDotSmall: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: Colors.PrimaryGreen,
-    marginRight: 10,
   },
-  statusText: {
-    ...Typography.bodyMedium,
-    color: Colors.White,
+  bannerTitle: {
+    ...Typography.labelLarge,
+    color: Colors.PrimaryGreen,
+    fontWeight: '700',
   },
-  sectionTitle: {
-    ...Typography.headlineMedium,
-    color: Colors.White,
-    marginTop: 24,
-    marginBottom: 12,
+  bannerSub: {
+    ...Typography.bodySmall,
+    color: Colors.TextSecondary,
   },
-  requestCard: {
+  bannerChevron: {
+    fontSize: 22,
+    color: Colors.PrimaryGreen,
+    fontWeight: '700',
+  },
+  sectionLabel: {
+    ...Typography.labelMedium,
+    color: Colors.PrimaryGreen,
+    letterSpacing: 1.5,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  cardContent: {
     padding: 20,
   },
-  requestHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   requestId: {
-    ...Typography.labelLarge,
-    color: Colors.TextSecondary,
+    ...Typography.titleMedium,
+    color: Colors.White,
+    fontWeight: '700',
   },
-  badge: {
+  depositBadge: {
     backgroundColor: 'rgba(150, 215, 76, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  badgeText: {
+  depositBadgeText: {
     ...Typography.labelSmall,
     color: Colors.PrimaryGreen,
   },
-  completedBadge: {
-    backgroundColor: 'rgba(160, 160, 176, 0.15)',
-  },
-  completedText: {
+  amountLabel: {
+    ...Typography.bodySmall,
     color: Colors.TextSecondary,
+    marginTop: 8,
   },
   amount: {
-    ...Typography.headlineLarge,
+    ...Typography.displayLarge,
     color: Colors.White,
-    marginTop: 8,
+    fontWeight: '700',
   },
-  routeRow: {
-    marginTop: 8,
+  routeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  routeText: {
+  routeMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  markerLetter: {
+    ...Typography.labelLarge,
+    color: Colors.White,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  routeTextBlock: {
+    flex: 1,
+  },
+  routeType: {
+    ...Typography.labelSmall,
+    color: Colors.TextDim,
+    letterSpacing: 1.2,
+  },
+  routePlace: {
+    ...Typography.bodyMedium,
+    color: Colors.White,
+    fontWeight: '600',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  statusLabel: {
     ...Typography.bodyMedium,
     color: Colors.TextSecondary,
   },
-  metaRow: {
-    flexDirection: 'row',
+  assignedBadge: {
+    backgroundColor: 'rgba(150, 215, 76, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  assignedBadgeText: {
+    ...Typography.labelSmall,
+    color: Colors.PrimaryGreen,
+  },
+  viewDetailsBtn: {
+    backgroundColor: Colors.PrimaryGreen,
+    borderRadius: 28,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
   },
-  metaText: {
+  viewDetailsText: {
+    ...Typography.titleMedium,
+    color: Colors.Black,
+    fontWeight: '700',
+  },
+  upcomingCard: {
+    padding: 16,
+  },
+  upcomingId: {
+    ...Typography.bodyMedium,
+    color: Colors.White,
+    fontWeight: '600',
+    flex: 1,
+  },
+  upcomingMeta: {
     ...Typography.bodySmall,
-    color: Colors.TextDim,
-  },
-  metaDot: {
-    color: Colors.TextDim,
-    marginHorizontal: 6,
+    color: Colors.TextSecondary,
+    marginTop: 4,
   },
 });

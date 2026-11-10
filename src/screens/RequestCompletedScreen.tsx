@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
+import Svg, { Path } from 'react-native-svg';
+import { AuraBackground, GlassCard, PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 
 interface RequestCompletedScreenProps {
@@ -15,31 +16,36 @@ export const RequestCompletedScreen: React.FC<RequestCompletedScreenProps> = ({
   return (
     <AuraBackground>
       <View style={styles.container}>
-        <TopBar title="Request completed" onBackClick={onBackClick} />
-
-        <View style={{ height: 32 }} />
-
-        {/* Success icon */}
-        <View style={styles.successCircle}>
-          <Text style={styles.checkmark}>✓</Text>
-        </View>
-
-        <View style={{ height: 24 }} />
+        <View style={{ height: 48 }} />
 
         <Text style={styles.title}>Request completed</Text>
         <Text style={styles.subtitle}>
-          Cash delivery verified and recorded. Proof submitted.
+          REQ-1048 · MMK 250,000 delivered to HQ Cash Centre.
         </Text>
+
+        <View style={{ height: 24 }} />
+
+        {/* Success icon */}
+        <View style={styles.successCircle}>
+          <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M5 13l4 4L19 7"
+              stroke={Colors.PrimaryGreen}
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </Svg>
+        </View>
 
         <View style={{ height: 32 }} />
 
         {/* Summary card */}
         <GlassCard>
-          <SummaryRow label="Request" value="REQ-1048" showBorder />
-          <SummaryRow label="Amount" value="MMK 250,000" showBorder />
-          <SummaryRow label="From" value="Orchard Branch" showBorder />
-          <SummaryRow label="To" value="HQ Cash Centre" showBorder />
-          <SummaryRow label="Completed" value="10:45 AM" />
+          <SummaryRow label="Final OTP verified" value="✓" showBorder />
+          <SummaryRow label="Proof of delivery saved" value="✓" showBorder />
+          <SummaryRow label="Location sharing" value="Stopped" />
         </GlassCard>
 
         <View style={{ flex: 1 }} />
@@ -47,6 +53,11 @@ export const RequestCompletedScreen: React.FC<RequestCompletedScreenProps> = ({
         <PrimaryButton
           text="Back to assignments"
           onPress={onBackToAssignments}
+          style={{ marginBottom: 12 }}
+        />
+        <SecondaryButton
+          text="View trip history"
+          onPress={onBackClick}
           style={{ marginBottom: 24 }}
         />
       </View>
@@ -73,30 +84,27 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     alignItems: 'center',
   },
-  successCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: 'rgba(150, 215, 76, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkmark: {
-    fontSize: 36,
-    color: Colors.PrimaryGreen,
-  },
   title: {
     ...Typography.headlineLarge,
     color: Colors.White,
     fontWeight: '700',
     textAlign: 'center',
+    fontSize: 28,
   },
   subtitle: {
     ...Typography.bodyMedium,
     color: Colors.TextSecondary,
     textAlign: 'center',
     marginTop: 8,
+  },
+  successCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(150, 215, 76, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   row: {
     flexDirection: 'row',

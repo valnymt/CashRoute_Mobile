@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
+import Svg, { Path } from 'react-native-svg';
+import { AuraBackground, GlassCard, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 
 interface PickupVerifiedScreenProps {
@@ -15,16 +16,20 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
   return (
     <AuraBackground>
       <View style={styles.container}>
-        <TopBar
-          title="Pickup verification"
-          onBackClick={onBackClick}
-        />
-
-        <View style={{ height: 32 }} />
+        <View style={{ height: 48 }} />
 
         {/* Success checkmark */}
         <View style={styles.checkCircle}>
-          <Text style={styles.checkmark}>✓</Text>
+          <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M5 13l4 4L19 7"
+              stroke={Colors.PrimaryGreen}
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </Svg>
         </View>
 
         <View style={{ height: 24 }} />
@@ -39,9 +44,9 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
         {/* Verified info card */}
         <GlassCard>
           <VerifiedInfoRow label="Request" value="REQ-1048" showBorder />
-          <VerifiedInfoRow label="Amount" value="MMK 250,000" showBorder />
-          <VerifiedInfoRow label="Pickup" value="Orchard Branch" showBorder />
-          <VerifiedInfoRow label="Verified at" value="10:22 AM" />
+          <VerifiedInfoRow label="Collected" value="MMK 250,000" showBorder />
+          <VerifiedInfoRow label="Verified by OTP" value="WaiYan · 09:29" showBorder />
+          <VerifiedInfoRow label="Next stop" value="HQ Cash Centre" />
         </GlassCard>
 
         <View style={{ flex: 1 }} />
@@ -79,14 +84,10 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: 'rgba(150, 215, 76, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkmark: {
-    fontSize: 36,
-    color: Colors.PrimaryGreen,
   },
   title: {
     ...Typography.headlineLarge,
