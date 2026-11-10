@@ -11,6 +11,8 @@ import {
   ProofOfDeliveryScreen,
   RequestCompletedScreen,
   NotificationsScreen,
+  TripHistoryScreen,
+  TripDetailsScreen,
 } from '../screens';
 import type { OtpStep, OtpType } from '../screens';
 
@@ -28,6 +30,8 @@ export type RootStackParamList = {
   OtpDropOffEnter: undefined;
   ProofOfDelivery: undefined;
   RequestCompleted: undefined;
+  TripHistory: undefined;
+  TripDetails: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -49,6 +53,7 @@ export const AppNavigation: React.FC = () => {
             <HomeScreen
               onRequestPress={() => navigation.navigate('RequestDetail')}
               onNotificationsPress={() => navigation.navigate('Notifications')}
+              onHistoryPress={() => navigation.navigate('TripHistory')}
             />
           )}
         </Stack.Screen>
@@ -159,9 +164,26 @@ export const AppNavigation: React.FC = () => {
         <Stack.Screen name="RequestCompleted">
           {({ navigation }) => (
             <RequestCompletedScreen
-              onBackClick={() => navigation.goBack()}
+              onBackClick={() => navigation.navigate('TripHistory')}
               onBackToAssignments={() => navigation.navigate('Home')}
             />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="TripHistory">
+          {({ navigation }) => (
+            <TripHistoryScreen
+              onTripPress={() => navigation.navigate('TripDetails')}
+              onTabChange={tab => {
+                if (tab === 'assignments') navigation.navigate('Home');
+              }}
+            />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="TripDetails">
+          {({ navigation }) => (
+            <TripDetailsScreen onBackClick={() => navigation.goBack()} />
           )}
         </Stack.Screen>
       </Stack.Navigator>

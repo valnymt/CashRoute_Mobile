@@ -8,9 +8,10 @@ import type { BottomNavItem } from '../components';
 interface HomeScreenProps {
   onRequestPress: () => void;
   onNotificationsPress?: () => void;
+  onHistoryPress?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotificationsPress }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotificationsPress, onHistoryPress }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
 
   return (
@@ -137,7 +138,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotifi
           </ScrollView>
         </View>
 
-        <BottomNavBar selected={selectedTab} onSelect={setSelectedTab} />
+        <BottomNavBar
+          selected={selectedTab}
+          onSelect={tab => {
+            setSelectedTab(tab);
+            if (tab === 'history') onHistoryPress?.();
+          }}
+        />
       </View>
     </AuraBackground>
   );

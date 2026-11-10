@@ -5,10 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
 } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
-import { AuraBackground, PrimaryButton } from '../components';
+import Svg, { Path } from 'react-native-svg';
+import { AuraBackground, PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 
 interface LoginScreenProps {
@@ -19,13 +18,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(5);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
   const handleSignIn = () => {
+    if (isLocked) return;
     if (username.trim() && password.trim()) {
       onLoginSuccess();
     } else {
-      setLoginError('Demo: wrong password');
+      const remaining = attemptsLeft - 1;
+      setAttemptsLeft(remaining);
+      if (remaining <= 0) {
+        setIsLocked(true);
+        setLoginError(null);
+      } else {
+        setLoginError(
+          `Incorrect username or password. ${remaining} attempts left before your account is locked.`,
+        );
+      }
     }
   };
 
@@ -69,6 +80,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           For authorized delivery team members only.
         </Text>
 
+        {/* Error card */}
+        {loginError && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorCardText}>{loginError}</Text>
+          </View>
+        )}
+
+        {/* Account locked card */}
+        {isLocked && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorCardText}>
+              Account locked after too many failed attempts. Your Super Admin has been notified to unlock it.
+            </Text>
+          </View>
+        )}
+
         {/* Username */}
         <Text style={styles.fieldLabel}>Username</Text>
         <TextInput
@@ -78,6 +105,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
+          editable={!isLocked}
         />
 
         {/* Password */}
@@ -90,6 +118,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
+            editable={!isLocked}
           />
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
@@ -102,10 +131,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
         <View style={{ height: 32 }} />
 
-        <PrimaryButton text="Sign in" onPress={handleSignIn} />
-
-        {loginError && (
-          <Text style={styles.errorTextCenter}>{loginError}</Text>
+        {isLocked ? (
+          <>
+            <View style={styles.disabledButton}>
+              <Text style={styles.disabledButtonText}>Sign in</Text>
+            </View>
+            <View style={{ height: 16 }} />
+            <SecondaryButton
+              text="Back to login"
+              onPress={() => {
+                setIsLocked(false);
+                setAttemptsLeft(5);
+                setLoginError(null);
+                setUsername('');
+                setPassword('');
+              }}
+            />
+            <View style={{ height: 16 }} />
+            <Text style={styles.helpText}>
+              Need help? Contact your Super Admin.
+            </Text>
+          </>
+        ) : (
+          <>
+            <PrimaryButton text="Sign in" onPress={handleSignIn} />
+            {attemptsLeft < 5 && (
+              <Text style={styles.demoText}>
+                Demo: {5 - attemptsLeft}th failed attempt
+              </Text>
+            )}
+          </>
         )}
 
         <View style={{ flex: 1 }} />
@@ -159,11 +214,17 @@ const styles = StyleSheet.create({
     ...Typography.bodyMedium,
     color: Colors.TextSecondary,
   },
-  errorTextCenter: {
+  errorCard: {
+    backgroundColor: 'rgba(255, 82, 82, 0.08)',
+    borderWidth: 1,
+    borderColor: Colors.AccentRed,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+  },
+  errorCardText: {
     ...Typography.bodyMedium,
     color: Colors.AccentRed,
-    textAlign: 'center',
-    marginTop: 16,
   },
   fieldLabel: {
     ...Typography.bodyMedium,
@@ -202,6 +263,28 @@ const styles = StyleSheet.create({
   showHideText: {
     ...Typography.labelLarge,
     color: Colors.PrimaryGreen,
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(150, 215, 76, 0.3)',
+    borderRadius: 28,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  disabledButtonText: {
+    ...Typography.titleMedium,
+    color: 'rgba(0, 0, 0, 0.4)',
+    fontWeight: '700',
+  },
+  demoText: {
+    ...Typography.bodyMedium,
+    color: Colors.AccentRed,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  helpText: {
+    ...Typography.bodyMedium,
+    color: Colors.TextSecondary,
+    textAlign: 'center',
   },
   footer: {
     ...Typography.bodySmall,

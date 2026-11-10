@@ -8,3 +8,5 @@ export { TripMapScreen } from './TripMapScreen';
 export { ProofOfDeliveryScreen } from './ProofOfDeliveryScreen';
 export { RequestCompletedScreen } from './RequestCompletedScreen';
 export { NotificationsScreen } from './NotificationsScreen';
+export { TripHistoryScreen } from './TripHistoryScreen';
+export { TripDetailsScreen } from './TripDetailsScreen';
