@@ -1,13 +1,21 @@
-import React from 'react';
-import { StatusBar } from 'react-native';
+import React, { useEffect } from 'react';
+import { StatusBar, Platform } from 'react-native';
+import { AppProvider } from './src/context/AppContext';
 import { AppNavigation } from './src/navigation/AppNavigation';
 
 function App() {
+  useEffect(() => {
+    StatusBar.setBarStyle('light-content');
+    if (Platform.OS === 'android') {
+      (StatusBar as any).setTranslucent(true);
+      (StatusBar as any).setBackgroundColor('transparent');
+    }
+  }, []);
+
   return (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <AppProvider>
       <AppNavigation />
-    </>
+    </AppProvider>
   );
 }
 

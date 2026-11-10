@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, TextInput, StyleSheet, Animated } from 'react-native';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
+import { useApp } from '../context/AppContext';
+import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 export type OtpStep = 'request' | 'enterCode';
 export type OtpType = 'pickup' | 'dropOff';
@@ -21,8 +23,28 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   onRequestOtp,
   onVerify,
 }) => {
+  const { currentTrip } = useApp();
   const title = type === 'pickup' ? 'Pickup verification' : 'Drop-off verification';
   const currentStep = type === 'pickup' ? 1 : 2;
+  const [isLoading, setIsLoading] = useState(false);
+
+  const contentAnim = useAnimatedMount(100, 400);
+
+  const handleRequestOtp = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      onRequestOtp();
+    }, 800);
+  };
+
+  const handleVerify = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      onVerify();
+    }, 1000);
+  };
 
   return (
     <AuraBackground>
@@ -46,19 +68,20 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
           </View>
         </View>
 
-        <View style={styles.content}>
+        <Animated.View style={[styles.content, contentAnim]}>
           {step === 'request' ? (
-            <OtpRequestContent type={type} />
+            <OtpRequestContent type={type} trip={currentTrip} />
           ) : (
-            <OtpEnterCodeContent />
+            <OtpEnterCodeContent type={type} trip={currentTrip} />
           )}
-        </View>
+        </Animated.View>
 
         {step === 'request' ? (
           <>
             <PrimaryButton
-              text="Request OTP"
-              onPress={onRequestOtp}
+              text={isLoading ? 'Sending...' : 'Request OTP'}
+              onPress={handleRequestOtp}
+              loading={isLoading}
               style={{ marginBottom: 8 }}
             />
             <Text style={styles.footerText}>
@@ -69,12 +92,11 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
         ) : (
           <>
             <PrimaryButton
-              text="Verify"
-              onPress={onVerify}
+              text={isLoading ? 'Verifying...' : 'Verify'}
+              onPress={handleVerify}
+              loading={isLoading}
               style={{ marginBottom: 8 }}
             />
-            <Text style={styles.demoErrorRed}>Demo: wrong code</Text>
-            <Text style={styles.demoErrorRed}>Demo: code expired</Text>
             <View style={{ height: 16 }} />
           </>
         )}
@@ -83,20 +105,13 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   );
 };
 
-const OtpRequestContent: React.FC<{ type: OtpType }> = ({ type }) => {
+const OtpRequestContent: React.FC<{ type: OtpType; trip: any }> = ({ type, trip }) => {
   const locationText = type === 'pickup' ? 'pickup' : 'drop-off';
-  const contactName =
-    type === 'pickup'
-      ? 'Amy Tan · Orchard Branch'
-      : 'Ops Desk · HQ Cash Centre';
-  const contactInfo =
-    type === 'pickup'
-      ? 'SMS +95912345678 · a•••@bank.com'
-      : 'SMS +95987654321 · ops•••@bank.com';
+  const contactName = type === 'pickup' ? trip.contactName : trip.dropOffContact;
+  const contactInfo = type === 'pickup' ? trip.contactInfo : trip.dropOffContactInfo;
 
   return (
     <View style={styles.requestContent}>
-      {/* OTP circle */}
       <View style={styles.otpCircle}>
         <Text style={styles.otpCircleText}>OTP</Text>
       </View>
@@ -119,13 +134,56 @@ const OtpRequestContent: React.FC<{ type: OtpType }> = ({ type }) => {
   );
 };
 
-const OtpEnterCodeContent: React.FC = () => {
+const OtpEnterCodeContent: React.FC<{ type: OtpType; trip: any }> = ({ type, trip }) => {
   const [otpCode, setOtpCode] = useState('');
+  const [expirySeconds, setExpirySeconds] = useState(272);
+  const [resendSeconds, setResendSeconds] = useState(45);
+  const [attemptsLeft, setAttemptsLeft] = useState(5);
+  const inputRef = useRef<any>(null);
+
+  const contactName = type === 'pickup' ? trip.contactName.split(' · ')[0] : trip.dropOffContact.split(' · ')[0];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setExpirySeconds(prev => (prev > 0 ? prev - 1 : 0));
+      setResendSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = useCallback((secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }, []);
+
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleOtpChange = (text: string) => {
+    if (text.length <= 6 && /^\d*$/.test(text)) {
+      setOtpCode(text);
+      if (text.length === 6 && text !== '123456') {
+        triggerShake();
+        setAttemptsLeft(prev => Math.max(0, prev - 1));
+        setTimeout(() => setOtpCode(''), 600);
+      }
+    }
+  };
 
   return (
     <View style={styles.codeContent}>
       <GlassCard>
-        <Text style={styles.sentText}>OTP sent to Amy Tan by SMS and email.</Text>
+        <Text style={styles.sentText}>OTP sent to {contactName} by SMS and email.</Text>
       </GlassCard>
 
       <View style={{ height: 24 }} />
@@ -134,33 +192,33 @@ const OtpEnterCodeContent: React.FC = () => {
 
       <View style={{ height: 16 }} />
 
-      {/* OTP boxes */}
-      <View style={styles.otpRow}>
+      <Animated.View style={[styles.otpRow, { transform: [{ translateX: shakeAnim }] }]}>
         {[0, 1, 2, 3, 4, 5].map(index => {
           const char = otpCode[index] || '';
           const isActive = index === otpCode.length;
+          const isFilled = char !== '';
           return (
-            <View
+            <TouchableInput
               key={index}
-              style={[
-                styles.otpBox,
-                isActive && styles.otpBoxActive,
-              ]}>
-              <Text style={styles.otpChar}>{char}</Text>
-            </View>
+              onPress={() => inputRef.current?.focus()}>
+              <View
+                style={[
+                  styles.otpBox,
+                  isActive && styles.otpBoxActive,
+                  isFilled && styles.otpBoxFilled,
+                ]}>
+                <Text style={styles.otpChar}>{char}</Text>
+              </View>
+            </TouchableInput>
           );
         })}
-      </View>
+      </Animated.View>
 
-      {/* Hidden input */}
       <TextInput
+        ref={inputRef}
         style={styles.hiddenInput}
         value={otpCode}
-        onChangeText={text => {
-          if (text.length <= 6 && /^\d*$/.test(text)) {
-            setOtpCode(text);
-          }
-        }}
+        onChangeText={handleOtpChange}
         keyboardType="number-pad"
         maxLength={6}
         autoFocus
@@ -169,20 +227,31 @@ const OtpEnterCodeContent: React.FC = () => {
       <View style={{ height: 16 }} />
 
       <View style={styles.timerRow}>
-        <View style={styles.expiryBadge}>
-          <Text style={styles.expiryText}>Expires in 04:32</Text>
+        <View style={[styles.expiryBadge, expirySeconds < 60 && styles.expiryBadgeUrgent]}>
+          <Text style={[styles.expiryText, expirySeconds < 60 && styles.expiryTextUrgent]}>
+            Expires in {formatTime(expirySeconds)}
+          </Text>
         </View>
-        <Text style={styles.resendText}>Resend in 0:45</Text>
+        <Text style={[styles.resendText, resendSeconds === 0 && styles.resendReady]}>
+          {resendSeconds > 0 ? `Resend in 0:${resendSeconds.toString().padStart(2, '0')}` : 'Resend code'}
+        </Text>
       </View>
 
       <View style={{ height: 16 }} />
 
       <Text style={styles.attemptsText}>
-        Attempts left: 5 of 5 · each attempt is logged with time and GPS.
+        Attempts left: {attemptsLeft} of 5 · each attempt is logged with time and GPS.
       </Text>
     </View>
   );
 };
+
+const TouchableInput: React.FC<{ onPress: () => void; children: React.ReactNode }> = ({
+  onPress,
+  children,
+}) => (
+  <View onTouchEnd={onPress}>{children}</View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -318,6 +387,10 @@ const styles = StyleSheet.create({
   otpBoxActive: {
     borderColor: Colors.PrimaryGreen,
   },
+  otpBoxFilled: {
+    borderColor: Colors.PrimaryGreen,
+    backgroundColor: 'rgba(150, 215, 76, 0.08)',
+  },
   otpChar: {
     ...Typography.headlineLarge,
     color: Colors.White,
@@ -340,13 +413,22 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
+  expiryBadgeUrgent: {
+    backgroundColor: 'rgba(255, 82, 82, 0.15)',
+  },
   expiryText: {
     ...Typography.labelLarge,
     color: Colors.PrimaryGreen,
   },
+  expiryTextUrgent: {
+    color: Colors.AccentRed,
+  },
   resendText: {
     ...Typography.bodyMedium,
     color: Colors.TextSecondary,
+  },
+  resendReady: {
+    color: Colors.PrimaryGreen,
   },
   attemptsText: {
     ...Typography.bodySmall,
@@ -356,11 +438,5 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.TextDim,
     textAlign: 'center',
-  },
-  demoErrorRed: {
-    ...Typography.bodyMedium,
-    color: Colors.AccentRed,
-    textAlign: 'center',
-    marginTop: 8,
   },
 });

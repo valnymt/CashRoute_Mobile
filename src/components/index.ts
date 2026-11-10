@@ -5,3 +5,4 @@ export { PrimaryButton } from './PrimaryButton';
 export { SecondaryButton } from './SecondaryButton';
 export { BottomNavBar } from './BottomNavBar';
 export type { BottomNavItem } from './BottomNavBar';
+export { AnimatedPressable } from './AnimatedPressable';

@@ -31,7 +31,7 @@ export type RootStackParamList = {
   ProofOfDelivery: undefined;
   RequestCompleted: undefined;
   TripHistory: undefined;
-  TripDetails: undefined;
+  TripDetails: { tripId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -173,7 +173,7 @@ export const AppNavigation: React.FC = () => {
         <Stack.Screen name="TripHistory">
           {({ navigation }) => (
             <TripHistoryScreen
-              onTripPress={() => navigation.navigate('TripDetails')}
+              onTripPress={(id) => navigation.navigate('TripDetails', { tripId: id })}
               onTabChange={tab => {
                 if (tab === 'assignments') navigation.navigate('Home');
               }}
@@ -182,8 +182,11 @@ export const AppNavigation: React.FC = () => {
         </Stack.Screen>
 
         <Stack.Screen name="TripDetails">
-          {({ navigation }) => (
-            <TripDetailsScreen onBackClick={() => navigation.goBack()} />
+          {({ navigation, route }) => (
+            <TripDetailsScreen
+              onBackClick={() => navigation.goBack()}
+              tripId={(route.params as any)?.tripId}
+            />
           )}
         </Stack.Screen>
       </Stack.Navigator>

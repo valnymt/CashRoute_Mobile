@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { AuraBackground, GlassCard, BottomNavBar } from '../components';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native';
+import { AuraBackground, GlassCard, BottomNavBar, AnimatedPressable } from '../components';
 import { Colors, Typography } from '../theme';
+import { useApp } from '../context/AppContext';
 import type { BottomNavItem } from '../components';
 
 interface TripHistoryScreenProps {
@@ -11,33 +12,49 @@ interface TripHistoryScreenProps {
 
 type FilterTab = 'all' | 'completed' | 'cancelled';
 
-interface TripItem {
-  id: string;
-  date: string;
-  branch: string;
-  amount: string;
-  status: 'Completed' | 'Cancelled';
-}
-
-const trips: TripItem[] = [
-  { id: 'REQ-1038', date: '13 Oct', branch: 'Latha Branch', amount: 'MMK 120,000', status: 'Completed' },
-  { id: 'REQ-1035', date: '12 Oct', branch: 'TimeCity Branch', amount: 'MMK 90,000', status: 'Completed' },
-  { id: 'REQ-1033', date: '11 Oct', branch: 'Kamayut Branch', amount: 'MMK 60,000', status: 'Cancelled' },
-  { id: 'REQ-1030', date: '10 Oct', branch: 'Insein Branch', amount: 'MMK 200,000', status: 'Completed' },
-  { id: 'REQ-1027', date: '09 Oct', branch: 'Yay Kyaw Branch', amount: 'MMK 150,000', status: 'Completed' },
-];
-
 export const TripHistoryScreen: React.FC<TripHistoryScreenProps> = ({
   onTripPress,
   onTabChange,
 }) => {
+  const { tripHistory, isRefreshing, refreshData } = useApp();
   const [filter, setFilter] = useState<FilterTab>('all');
 
-  const filtered = trips.filter(t => {
+  const filtered = tripHistory.filter(t => {
     if (filter === 'all') return true;
     if (filter === 'completed') return t.status === 'Completed';
     return t.status === 'Cancelled';
   });
+
+  const anims = useRef(
+    filtered.map(() => ({
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(24),
+    })),
+  ).current;
+
+  useEffect(() => {
+    anims.forEach(a => {
+      a.opacity.setValue(0);
+      a.translateY.setValue(24);
+    });
+    const animations = anims.slice(0, filtered.length).map((a, i) =>
+      Animated.parallel([
+        Animated.timing(a.opacity, {
+          toValue: 1,
+          duration: 300,
+          delay: i * 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(a.translateY, {
+          toValue: 0,
+          duration: 300,
+          delay: i * 70,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    Animated.stagger(0, animations).start();
+  }, [filter, anims, filtered.length]);
 
   return (
     <AuraBackground>
@@ -45,7 +62,6 @@ export const TripHistoryScreen: React.FC<TripHistoryScreenProps> = ({
         <View style={styles.content}>
           <Text style={styles.title}>My Trip History</Text>
 
-          {/* Filter tabs */}
           <View style={styles.filterRow}>
             {(['all', 'completed', 'cancelled'] as FilterTab[]).map(tab => (
               <TouchableOpacity
@@ -58,45 +74,67 @@ export const TripHistoryScreen: React.FC<TripHistoryScreenProps> = ({
                     filter === tab && styles.filterTabTextActive,
                   ]}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === 'all' ? ` (${tripHistory.length})` :
+                   tab === 'completed' ? ` (${tripHistory.filter(t => t.status === 'Completed').length})` :
+                   ` (${tripHistory.filter(t => t.status === 'Cancelled').length})`}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {filtered.map(trip => (
-              <TouchableOpacity
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={refreshData}
+                tintColor={Colors.PrimaryGreen}
+                colors={[Colors.PrimaryGreen]}
+                progressBackgroundColor={Colors.DarkBgTop}
+              />
+            }>
+            {filtered.map((trip, index) => (
+              <Animated.View
                 key={trip.id}
-                onPress={() => onTripPress(trip.id)}
-                activeOpacity={0.8}>
-                <GlassCard style={{ marginBottom: 12 }}>
-                  <View style={styles.tripCard}>
-                    <View style={styles.tripHeader}>
-                      <Text style={styles.tripId}>{trip.id}</Text>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          trip.status === 'Cancelled' && styles.cancelledBadge,
-                        ]}>
-                        <Text
+                style={{
+                  opacity: anims[index]?.opacity ?? 1,
+                  transform: [{ translateY: anims[index]?.translateY ?? 0 }],
+                }}>
+                <AnimatedPressable onPress={() => onTripPress(trip.id)}>
+                  <GlassCard style={{ marginBottom: 12 }}>
+                    <View style={styles.tripCard}>
+                      <View style={styles.tripHeader}>
+                        <Text style={styles.tripId}>{trip.id}</Text>
+                        <View
                           style={[
-                            styles.statusText,
-                            trip.status === 'Cancelled' && styles.cancelledText,
+                            styles.statusBadge,
+                            trip.status === 'Cancelled' && styles.cancelledBadge,
                           ]}>
-                          {trip.status}
+                          <Text
+                            style={[
+                              styles.statusText,
+                              trip.status === 'Cancelled' && styles.cancelledText,
+                            ]}>
+                            {trip.status}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.tripBottom}>
+                        <Text style={styles.tripMeta}>
+                          {trip.date} · {trip.branch}
                         </Text>
+                        <Text style={styles.tripAmount}>{trip.amount}</Text>
                       </View>
                     </View>
-                    <View style={styles.tripBottom}>
-                      <Text style={styles.tripMeta}>
-                        {trip.date} · {trip.branch}
-                      </Text>
-                      <Text style={styles.tripAmount}>{trip.amount}</Text>
-                    </View>
-                  </View>
-                </GlassCard>
-              </TouchableOpacity>
+                  </GlassCard>
+                </AnimatedPressable>
+              </Animated.View>
             ))}
+            {filtered.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No trips found</Text>
+              </View>
+            )}
             <View style={{ height: 16 }} />
           </ScrollView>
         </View>
@@ -191,5 +229,13 @@ const styles = StyleSheet.create({
     ...Typography.bodyMedium,
     color: Colors.White,
     fontWeight: '600',
+  },
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    ...Typography.bodyMedium,
+    color: Colors.TextDim,
   },
 });

@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
+import { useApp } from '../context/AppContext';
+import { useScaleAnimation, useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface RequestCompletedScreenProps {
   onBackClick: () => void;
@@ -13,20 +15,25 @@ export const RequestCompletedScreen: React.FC<RequestCompletedScreenProps> = ({
   onBackClick,
   onBackToAssignments,
 }) => {
+  const { currentTrip } = useApp();
+  const checkAnim = useScaleAnimation();
+  const contentAnim = useAnimatedMount(300, 500);
+
   return (
     <AuraBackground>
       <View style={styles.container}>
         <View style={{ height: 48 }} />
 
-        <Text style={styles.title}>Request completed</Text>
-        <Text style={styles.subtitle}>
-          REQ-1048 · MMK 250,000 delivered to HQ Cash Centre.
-        </Text>
+        <Animated.View style={contentAnim}>
+          <Text style={styles.title}>Request completed</Text>
+          <Text style={styles.subtitle}>
+            {currentTrip.id} · {currentTrip.currency} {currentTrip.amount} delivered to {currentTrip.dropOffName}.
+          </Text>
+        </Animated.View>
 
         <View style={{ height: 24 }} />
 
-        {/* Success icon */}
-        <View style={styles.successCircle}>
+        <Animated.View style={[styles.successCircle, { transform: checkAnim.transform }]}>
           <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
             <Path
               d="M5 13l4 4L19 7"
@@ -37,16 +44,17 @@ export const RequestCompletedScreen: React.FC<RequestCompletedScreenProps> = ({
               fill="none"
             />
           </Svg>
-        </View>
+        </Animated.View>
 
         <View style={{ height: 32 }} />
 
-        {/* Summary card */}
-        <GlassCard>
-          <SummaryRow label="Final OTP verified" value="✓" showBorder />
-          <SummaryRow label="Proof of delivery saved" value="✓" showBorder />
-          <SummaryRow label="Location sharing" value="Stopped" />
-        </GlassCard>
+        <Animated.View style={contentAnim}>
+          <GlassCard>
+            <SummaryRow label="Final OTP verified" value="✓" showBorder />
+            <SummaryRow label="Proof of delivery saved" value="✓" showBorder />
+            <SummaryRow label="Location sharing" value="Stopped" />
+          </GlassCard>
+        </Animated.View>
 
         <View style={{ flex: 1 }} />
 

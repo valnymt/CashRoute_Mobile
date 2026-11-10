@@ -1,8 +1,18 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+  RefreshControl,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { AuraBackground, GlassCard, BottomNavBar } from '../components';
+import { AuraBackground, GlassCard, BottomNavBar, AnimatedPressable } from '../components';
 import { Colors, Typography } from '../theme';
+import { useApp } from '../context/AppContext';
+import { usePulse } from '../hooks/useAnimatedMount';
 import type { BottomNavItem } from '../components';
 
 interface HomeScreenProps {
@@ -13,13 +23,46 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotificationsPress, onHistoryPress }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
+  const { currentTrip, upcomingTrip, unreadCount, isRefreshing, refreshData } = useApp();
+  const pulseOpacity = usePulse();
+
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const bannerAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim = useRef(new Animated.Value(0)).current;
+  const upcomingAnim = useRef(new Animated.Value(0)).current;
+
+  const headerSlide = useRef(new Animated.Value(20)).current;
+  const bannerSlide = useRef(new Animated.Value(30)).current;
+  const cardSlide = useRef(new Animated.Value(30)).current;
+  const upcomingSlide = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.stagger(100, [
+      Animated.parallel([
+        Animated.timing(headerAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(headerSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(bannerAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(bannerSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(cardAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(cardSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(upcomingAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(upcomingSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, [headerAnim, headerSlide, bannerAnim, bannerSlide, cardAnim, cardSlide, upcomingAnim, upcomingSlide]);
 
   return (
     <AuraBackground>
       <View style={styles.container}>
         <View style={styles.content}>
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerSlide }] }]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>My Assignments</Text>
               <Text style={styles.subtitle}>Ngeyeemon · Team A (Driver)</Text>
@@ -40,99 +83,121 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotifi
                     fill="none"
                   />
                 </Svg>
-                <View style={styles.notifDot} />
+                {unreadCount > 0 && (
+                  <Animated.View style={[styles.notifDot, { opacity: pulseOpacity }]}>
+                    {unreadCount > 1 && (
+                      <Text style={styles.notifCount}>{unreadCount}</Text>
+                    )}
+                  </Animated.View>
+                )}
               </TouchableOpacity>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>NYM</Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* New assignment banner */}
-          <TouchableOpacity onPress={onRequestPress} activeOpacity={0.8}>
-            <View style={styles.newAssignmentBanner}>
-              <View style={styles.bannerLeft}>
-                <View style={styles.greenDotSmall} />
-                <View>
-                  <Text style={styles.bannerTitle}>New assignment</Text>
-                  <Text style={styles.bannerSub}>REQ-1048 · Deposit · tap to view</Text>
+          <Animated.View style={{ opacity: bannerAnim, transform: [{ translateY: bannerSlide }] }}>
+            <AnimatedPressable onPress={onRequestPress}>
+              <View style={styles.newAssignmentBanner}>
+                <View style={styles.bannerLeft}>
+                  <Animated.View style={[styles.greenDotSmall, { opacity: pulseOpacity }]} />
+                  <View>
+                    <Text style={styles.bannerTitle}>New assignment</Text>
+                    <Text style={styles.bannerSub}>{currentTrip.id} · {currentTrip.type} · tap to view</Text>
+                  </View>
                 </View>
+                <Text style={styles.bannerChevron}>›</Text>
               </View>
-              <Text style={styles.bannerChevron}>›</Text>
-            </View>
-          </TouchableOpacity>
+            </AnimatedPressable>
+          </Animated.View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={refreshData}
+                tintColor={Colors.PrimaryGreen}
+                colors={[Colors.PrimaryGreen]}
+                progressBackgroundColor={Colors.DarkBgTop}
+              />
+            }>
             {/* Current Trip */}
             <Text style={styles.sectionLabel}>CURRENT TRIP</Text>
 
-            <TouchableOpacity onPress={onRequestPress} activeOpacity={0.8}>
-              <GlassCard style={{ marginBottom: 12 }}>
-                <View style={styles.cardContent}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.requestId}>REQ-1048</Text>
-                    <View style={styles.depositBadge}>
-                      <Text style={styles.depositBadgeText}>Deposit</Text>
+            <Animated.View style={{ opacity: cardAnim, transform: [{ translateY: cardSlide }] }}>
+              <AnimatedPressable onPress={onRequestPress}>
+                <GlassCard style={{ marginBottom: 12 }}>
+                  <View style={styles.cardContent}>
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.requestId}>{currentTrip.id}</Text>
+                      <View style={styles.depositBadge}>
+                        <Text style={styles.depositBadgeText}>{currentTrip.type}</Text>
+                      </View>
                     </View>
+
+                    <Text style={styles.amountLabel}>Amount</Text>
+                    <Text style={styles.amount}>{currentTrip.currency} {currentTrip.amount}</Text>
+
+                    <View style={{ height: 12 }} />
+
+                    {/* Route */}
+                    <View style={styles.routeItem}>
+                      <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
+                        <Text style={styles.markerLetter}>A</Text>
+                      </View>
+                      <View style={styles.routeTextBlock}>
+                        <Text style={styles.routeType}>PICKUP</Text>
+                        <Text style={styles.routePlace}>{currentTrip.pickupName}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.routeItem}>
+                      <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
+                        <Text style={styles.markerLetter}>B</Text>
+                      </View>
+                      <View style={styles.routeTextBlock}>
+                        <Text style={styles.routeType}>DROP-OFF</Text>
+                        <Text style={styles.routePlace}>{currentTrip.dropOffName}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Status</Text>
+                      <View style={styles.assignedBadge}>
+                        <Text style={styles.assignedBadgeText}>{currentTrip.status}</Text>
+                      </View>
+                    </View>
+
+                    <View style={{ height: 12 }} />
+
+                    <TouchableOpacity style={styles.viewDetailsBtn} onPress={onRequestPress} activeOpacity={0.8}>
+                      <Text style={styles.viewDetailsText}>View Details</Text>
+                    </TouchableOpacity>
                   </View>
-
-                  <Text style={styles.amountLabel}>Amount</Text>
-                  <Text style={styles.amount}>MMK 250,000</Text>
-
-                  <View style={{ height: 12 }} />
-
-                  {/* Route */}
-                  <View style={styles.routeItem}>
-                    <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
-                      <Text style={styles.markerLetter}>A</Text>
-                    </View>
-                    <View style={styles.routeTextBlock}>
-                      <Text style={styles.routeType}>PICKUP</Text>
-                      <Text style={styles.routePlace}>Orchard Branch</Text>
-                    </View>
-                  </View>
-                  <View style={styles.routeItem}>
-                    <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
-                      <Text style={styles.markerLetter}>B</Text>
-                    </View>
-                    <View style={styles.routeTextBlock}>
-                      <Text style={styles.routeType}>DROP-OFF</Text>
-                      <Text style={styles.routePlace}>HQ Cash Centre</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.statusRow}>
-                    <Text style={styles.statusLabel}>Status</Text>
-                    <View style={styles.assignedBadge}>
-                      <Text style={styles.assignedBadgeText}>Assigned</Text>
-                    </View>
-                  </View>
-
-                  <View style={{ height: 12 }} />
-
-                  <TouchableOpacity style={styles.viewDetailsBtn} onPress={onRequestPress}>
-                    <Text style={styles.viewDetailsText}>View Details</Text>
-                  </TouchableOpacity>
-                </View>
-              </GlassCard>
-            </TouchableOpacity>
+                </GlassCard>
+              </AnimatedPressable>
+            </Animated.View>
 
             {/* Upcoming */}
             <Text style={styles.sectionLabel}>UPCOMING</Text>
 
-            <GlassCard style={{ marginBottom: 12 }}>
-              <View style={styles.upcomingCard}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.upcomingId}>REQ-1053 · Withdrawal</Text>
-                  <View style={styles.assignedBadge}>
-                    <Text style={styles.assignedBadgeText}>Assigned</Text>
+            <Animated.View style={{ opacity: upcomingAnim, transform: [{ translateY: upcomingSlide }] }}>
+              <GlassCard style={{ marginBottom: 12 }}>
+                <View style={styles.upcomingCard}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.upcomingId}>{upcomingTrip.id} · {upcomingTrip.type}</Text>
+                    <View style={styles.assignedBadge}>
+                      <Text style={styles.assignedBadgeText}>{upcomingTrip.status}</Text>
+                    </View>
                   </View>
+                  <Text style={styles.upcomingMeta}>
+                    {upcomingTrip.currency} {upcomingTrip.amount} · {upcomingTrip.pickupName} → {upcomingTrip.dropOffName} · {upcomingTrip.timeSlot}
+                  </Text>
                 </View>
-                <Text style={styles.upcomingMeta}>
-                  SGD 120,000 · HQ → Tampines · 15 Oct, 13:00
-                </Text>
-              </View>
-            </GlassCard>
+              </GlassCard>
+            </Animated.View>
 
             <View style={{ height: 16 }} />
           </ScrollView>
@@ -184,12 +249,20 @@ const styles = StyleSheet.create({
   },
   notifDot: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.PrimaryGreen,
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.AccentRed,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notifCount: {
+    fontSize: 9,
+    color: Colors.White,
+    fontWeight: '700',
   },
   avatar: {
     width: 44,

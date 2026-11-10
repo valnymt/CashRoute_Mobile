@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
+import { useApp } from '../context/AppContext';
+import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface RequestDetailScreenProps {
   onBackClick: () => void;
@@ -12,99 +14,115 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
   onBackClick,
   onStartTrip,
 }) => {
+  const { currentTrip } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const card1Anim = useAnimatedMount(0, 400);
+  const card2Anim = useAnimatedMount(100, 400);
+  const card3Anim = useAnimatedMount(200, 400);
+  const card4Anim = useAnimatedMount(300, 400);
+
+  const handleAccept = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      onStartTrip();
+    }, 800);
+  };
+
   return (
     <AuraBackground>
       <View style={styles.container}>
         <TopBar title="Request details" onBackClick={onBackClick} />
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Request ID + Time slot */}
-          <GlassCard>
-            <View style={styles.cardContent}>
-              <Text style={styles.requestId}>REQ-1048</Text>
-              <Text style={styles.amount}>MMK 250,000</Text>
-              <View style={styles.timeSlotRow}>
-                <Text style={styles.timeSlotLabel}>Requested time slot</Text>
-                <Text style={styles.timeSlotValue}>14 Oct · 10:00 – 12:00</Text>
+          <Animated.View style={card1Anim}>
+            <GlassCard>
+              <View style={styles.cardContent}>
+                <Text style={styles.requestId}>{currentTrip.id}</Text>
+                <Text style={styles.amount}>{currentTrip.currency} {currentTrip.amount}</Text>
+                <View style={styles.timeSlotRow}>
+                  <Text style={styles.timeSlotLabel}>Requested time slot</Text>
+                  <Text style={styles.timeSlotValue}>{currentTrip.timeSlot}</Text>
+                </View>
               </View>
-            </View>
-          </GlassCard>
+            </GlassCard>
+          </Animated.View>
 
           <View style={{ height: 12 }} />
 
-          {/* Route card */}
-          <GlassCard>
-            <View style={styles.cardContent}>
-              <Text style={styles.sectionLabel}>ROUTE</Text>
-              <View style={{ height: 12 }} />
+          <Animated.View style={card2Anim}>
+            <GlassCard>
+              <View style={styles.cardContent}>
+                <Text style={styles.sectionLabel}>ROUTE</Text>
+                <View style={{ height: 12 }} />
 
-              {/* Pickup */}
-              <View style={styles.routeItem}>
-                <View style={styles.markerContainer}>
-                  <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
-                    <Text style={styles.markerLetter}>A</Text>
+                <View style={styles.routeItem}>
+                  <View style={styles.markerContainer}>
+                    <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
+                      <Text style={styles.markerLetter}>A</Text>
+                    </View>
+                  </View>
+                  <View style={styles.routeTextContainer}>
+                    <Text style={styles.routeType}>PICKUP</Text>
+                    <Text style={styles.routeTitle}>{currentTrip.pickupName}</Text>
+                    <Text style={styles.routeAddr}>{currentTrip.pickupAddr}</Text>
                   </View>
                 </View>
-                <View style={styles.routeTextContainer}>
-                  <Text style={styles.routeType}>PICKUP</Text>
-                  <Text style={styles.routeTitle}>Orchard Branch</Text>
-                  <Text style={styles.routeAddr}>138 Orchard Rd, Myanmar</Text>
+
+                <View style={styles.routeConnector}>
+                  <View style={styles.routeLine} />
                 </View>
-              </View>
 
-              {/* Connector line */}
-              <View style={styles.routeConnector}>
-                <View style={styles.routeLine} />
-              </View>
-
-              {/* Drop-off */}
-              <View style={styles.routeItem}>
-                <View style={styles.markerContainer}>
-                  <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
-                    <Text style={styles.markerLetter}>B</Text>
+                <View style={styles.routeItem}>
+                  <View style={styles.markerContainer}>
+                    <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
+                      <Text style={styles.markerLetter}>B</Text>
+                    </View>
+                  </View>
+                  <View style={styles.routeTextContainer}>
+                    <Text style={styles.routeType}>DROP-OFF</Text>
+                    <Text style={styles.routeTitle}>{currentTrip.dropOffName}</Text>
+                    <Text style={styles.routeAddr}>{currentTrip.dropOffAddr}</Text>
                   </View>
                 </View>
-                <View style={styles.routeTextContainer}>
-                  <Text style={styles.routeType}>DROP-OFF</Text>
-                  <Text style={styles.routeTitle}>HQ Cash Centre</Text>
-                  <Text style={styles.routeAddr}>1 Raffles Quay, Myanmar</Text>
-                </View>
               </View>
-            </View>
-          </GlassCard>
+            </GlassCard>
+          </Animated.View>
 
           <View style={{ height: 12 }} />
 
-          {/* Remarks card */}
-          <GlassCard>
-            <View style={styles.cardContent}>
-              <Text style={styles.remarksLabel}>Remarks</Text>
-              <Text style={styles.remarksText}>
-                Daily surplus cash. Contact the branch manager on arrival.
-              </Text>
-            </View>
-          </GlassCard>
+          <Animated.View style={card3Anim}>
+            <GlassCard>
+              <View style={styles.cardContent}>
+                <Text style={styles.remarksLabel}>Remarks</Text>
+                <Text style={styles.remarksText}>{currentTrip.remarks}</Text>
+              </View>
+            </GlassCard>
+          </Animated.View>
 
           <View style={{ height: 12 }} />
 
-          {/* Status */}
-          <GlassCard>
-            <View style={styles.cardContent}>
-              <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Status</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>Assigned</Text>
+          <Animated.View style={card4Anim}>
+            <GlassCard>
+              <View style={styles.cardContent}>
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusLabel}>Status</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>{currentTrip.status}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          </GlassCard>
+            </GlassCard>
+          </Animated.View>
 
           <View style={{ height: 24 }} />
         </ScrollView>
 
         <PrimaryButton
-          text="Accept Assignment"
-          onPress={onStartTrip}
+          text={isLoading ? 'Accepting...' : 'Accept Assignment'}
+          onPress={handleAccept}
+          loading={isLoading}
           style={{ marginBottom: 24 }}
         />
       </View>

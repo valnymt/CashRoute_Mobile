@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
+import { useApp } from '../context/AppContext';
+import { useScaleAnimation, useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface PickupVerifiedScreenProps {
   onBackClick: () => void;
@@ -13,13 +15,19 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
   onBackClick,
   onContinueToDropOff,
 }) => {
+  const { currentTrip } = useApp();
+  const checkAnim = useScaleAnimation();
+  const contentAnim = useAnimatedMount(300, 500);
+
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
   return (
     <AuraBackground>
       <View style={styles.container}>
         <View style={{ height: 48 }} />
 
-        {/* Success checkmark */}
-        <View style={styles.checkCircle}>
+        <Animated.View style={[styles.checkCircle, { transform: checkAnim.transform }]}>
           <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
             <Path
               d="M5 13l4 4L19 7"
@@ -30,24 +38,25 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
               fill="none"
             />
           </Svg>
-        </View>
+        </Animated.View>
 
         <View style={{ height: 24 }} />
 
-        <Text style={styles.title}>Pickup handover verified</Text>
-        <Text style={styles.subtitle}>
-          Cash collected from Orchard Branch. Verification recorded with time and GPS.
-        </Text>
+        <Animated.View style={contentAnim}>
+          <Text style={styles.title}>Pickup handover verified</Text>
+          <Text style={styles.subtitle}>
+            Cash collected from {currentTrip.pickupName}. Verification recorded with time and GPS.
+          </Text>
 
-        <View style={{ height: 32 }} />
+          <View style={{ height: 32 }} />
 
-        {/* Verified info card */}
-        <GlassCard>
-          <VerifiedInfoRow label="Request" value="REQ-1048" showBorder />
-          <VerifiedInfoRow label="Collected" value="MMK 250,000" showBorder />
-          <VerifiedInfoRow label="Verified by OTP" value="WaiYan · 09:29" showBorder />
-          <VerifiedInfoRow label="Next stop" value="HQ Cash Centre" />
-        </GlassCard>
+          <GlassCard>
+            <VerifiedInfoRow label="Request" value={currentTrip.id} showBorder />
+            <VerifiedInfoRow label="Collected" value={`${currentTrip.currency} ${currentTrip.amount}`} showBorder />
+            <VerifiedInfoRow label="Verified by OTP" value={`WaiYan · ${timeStr}`} showBorder />
+            <VerifiedInfoRow label="Next stop" value={currentTrip.dropOffName} />
+          </GlassCard>
+        </Animated.View>
 
         <View style={{ flex: 1 }} />
 

@@ -5,10 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Animated,
+  Keyboard,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
+import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -21,11 +24,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [attemptsLeft, setAttemptsLeft] = useState(5);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const logoAnim = useAnimatedMount(0, 500);
+  const formAnim = useAnimatedMount(150, 500);
+  const btnAnim = useAnimatedMount(300, 500);
 
   const handleSignIn = () => {
-    if (isLocked) return;
+    if (isLocked || isLoading) return;
+    Keyboard.dismiss();
     if (username.trim() && password.trim()) {
-      onLoginSuccess();
+      setIsLoading(true);
+      setLoginError(null);
+      setTimeout(() => {
+        setIsLoading(false);
+        onLoginSuccess();
+      }, 1200);
     } else {
       const remaining = attemptsLeft - 1;
       setAttemptsLeft(remaining);
@@ -44,7 +58,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <AuraBackground>
       <View style={styles.container}>
         {/* Logo */}
-        <View style={styles.logoRow}>
+        <Animated.View style={[styles.logoRow, logoAnim]}>
           <View style={styles.logoIconContainer}>
             <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
               <Path
@@ -72,96 +86,104 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <Text style={styles.appName}>CashRoute</Text>
             <Text style={styles.appSubtitle}>DELIVERY TEAM</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Title */}
-        <Text style={styles.signInTitle}>Sign in</Text>
-        <Text style={styles.signInSubtitle}>
-          For authorized delivery team members only.
-        </Text>
+        <Animated.View style={formAnim}>
+          <Text style={styles.signInTitle}>Sign in</Text>
+          <Text style={styles.signInSubtitle}>
+            For authorized delivery team members only.
+          </Text>
 
-        {/* Error card */}
-        {loginError && (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorCardText}>{loginError}</Text>
-          </View>
-        )}
+          {/* Error card */}
+          {loginError && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorCardText}>{loginError}</Text>
+            </View>
+          )}
 
-        {/* Account locked card */}
-        {isLocked && (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorCardText}>
-              Account locked after too many failed attempts. Your Super Admin has been notified to unlock it.
-            </Text>
-          </View>
-        )}
+          {/* Account locked card */}
+          {isLocked && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorCardText}>
+                Account locked after too many failed attempts. Your Super Admin has been notified to unlock it.
+              </Text>
+            </View>
+          )}
 
-        {/* Username */}
-        <Text style={styles.fieldLabel}>Username</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter username"
-          placeholderTextColor={Colors.TextDim}
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          editable={!isLocked}
-        />
-
-        {/* Password */}
-        <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Password</Text>
-        <View style={styles.passwordContainer}>
+          {/* Username */}
+          <Text style={styles.fieldLabel}>Username</Text>
           <TextInput
-            style={styles.passwordInput}
-            placeholder="Enter password"
+            style={styles.input}
+            placeholder="Enter username"
             placeholderTextColor={Colors.TextDim}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            editable={!isLocked}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            editable={!isLocked && !isLoading}
           />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-            style={styles.showHideBtn}>
-            <Text style={styles.showHideText}>
-              {showPassword ? 'Hide' : 'Show'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+
+          {/* Password */}
+          <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Password</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter password"
+              placeholderTextColor={Colors.TextDim}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              editable={!isLocked && !isLoading}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.showHideBtn}>
+              <Text style={styles.showHideText}>
+                {showPassword ? 'Hide' : 'Show'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
 
         <View style={{ height: 32 }} />
 
-        {isLocked ? (
-          <>
-            <View style={styles.disabledButton}>
-              <Text style={styles.disabledButtonText}>Sign in</Text>
-            </View>
-            <View style={{ height: 16 }} />
-            <SecondaryButton
-              text="Back to login"
-              onPress={() => {
-                setIsLocked(false);
-                setAttemptsLeft(5);
-                setLoginError(null);
-                setUsername('');
-                setPassword('');
-              }}
-            />
-            <View style={{ height: 16 }} />
-            <Text style={styles.helpText}>
-              Need help? Contact your Super Admin.
-            </Text>
-          </>
-        ) : (
-          <>
-            <PrimaryButton text="Sign in" onPress={handleSignIn} />
-            {attemptsLeft < 5 && (
-              <Text style={styles.demoText}>
-                Demo: {5 - attemptsLeft}th failed attempt
+        <Animated.View style={btnAnim}>
+          {isLocked ? (
+            <>
+              <View style={styles.disabledButton}>
+                <Text style={styles.disabledButtonText}>Sign in</Text>
+              </View>
+              <View style={{ height: 16 }} />
+              <SecondaryButton
+                text="Back to login"
+                onPress={() => {
+                  setIsLocked(false);
+                  setAttemptsLeft(5);
+                  setLoginError(null);
+                  setUsername('');
+                  setPassword('');
+                }}
+              />
+              <View style={{ height: 16 }} />
+              <Text style={styles.helpText}>
+                Need help? Contact your Super Admin.
               </Text>
-            )}
-          </>
-        )}
+            </>
+          ) : (
+            <>
+              <PrimaryButton
+                text={isLoading ? 'Signing in...' : 'Sign in'}
+                onPress={handleSignIn}
+                loading={isLoading}
+              />
+              {attemptsLeft < 5 && (
+                <Text style={styles.demoText}>
+                  Demo: {5 - attemptsLeft}th failed attempt
+                </Text>
+              )}
+            </>
+          )}
+        </Animated.View>
 
         <View style={{ flex: 1 }} />
 
