@@ -7,3 +7,4 @@ export { PickupVerifiedScreen } from './PickupVerifiedScreen';
 export { TripMapScreen } from './TripMapScreen';
 export { ProofOfDeliveryScreen } from './ProofOfDeliveryScreen';
 export { RequestCompletedScreen } from './RequestCompletedScreen';
+export { NotificationsScreen } from './NotificationsScreen';

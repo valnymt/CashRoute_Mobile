@@ -7,9 +7,10 @@ import type { BottomNavItem } from '../components';
 
 interface HomeScreenProps {
   onRequestPress: () => void;
+  onNotificationsPress?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotificationsPress }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
 
   return (
@@ -23,7 +24,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress }) => {
               <Text style={styles.subtitle}>Ngeyeemon · Team A (Driver)</Text>
             </View>
             <View style={styles.headerIcons}>
-              <View style={styles.bellContainer}>
+              <TouchableOpacity onPress={onNotificationsPress} style={styles.bellContainer}>
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z"
@@ -39,7 +40,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress }) => {
                   />
                 </Svg>
                 <View style={styles.notifDot} />
-              </View>
+              </TouchableOpacity>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>NYM</Text>
               </View>

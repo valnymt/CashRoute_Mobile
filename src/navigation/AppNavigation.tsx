@@ -10,12 +10,14 @@ import {
   TripMapScreen,
   ProofOfDeliveryScreen,
   RequestCompletedScreen,
+  NotificationsScreen,
 } from '../screens';
 import type { OtpStep, OtpType } from '../screens';
 
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
+  Notifications: undefined;
   RequestDetail: undefined;
   TripMapPickup: undefined;
   OtpPickupRequest: undefined;
@@ -44,7 +46,16 @@ export const AppNavigation: React.FC = () => {
 
         <Stack.Screen name="Home">
           {({ navigation }) => (
-            <HomeScreen onRequestPress={() => navigation.navigate('RequestDetail')} />
+            <HomeScreen
+              onRequestPress={() => navigation.navigate('RequestDetail')}
+              onNotificationsPress={() => navigation.navigate('Notifications')}
+            />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Notifications">
+          {({ navigation }) => (
+            <NotificationsScreen onBackClick={() => navigation.goBack()} />
           )}
         </Stack.Screen>
 
