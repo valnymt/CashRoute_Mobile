@@ -57,6 +57,13 @@ export interface HistoryTrip {
   timeline: { label: string }[];
 }
 
+export interface TeamMember {
+  name: string;
+  initials: string;
+  role: string;
+  phone: string;
+}
+
 export interface User {
   name: string;
   initials: string;

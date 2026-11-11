@@ -3,7 +3,7 @@
 // (services/mockApi + services/mockData). When the real API lands,
 // src/services/httpApi.ts will replace these fixtures at the store layer.
 
-import type { TripData, NotificationData, HistoryTrip } from '../types';
+import type { TripData, NotificationData, HistoryTrip, TeamMember } from '../types';
 
 export const CURRENT_TRIP: TripData = {
   id: 'REQ-1048',
@@ -44,6 +44,21 @@ export const UPCOMING_TRIP: TripData = {
   date: '15 Oct 2026',
   team: 'Team A',
 };
+
+export const TEAM_MEMBERS: TeamMember[] = [
+  {
+    name: 'Ngeyeemon',
+    initials: 'NYM',
+    role: 'Driver',
+    phone: '+95912345678',
+  },
+  {
+    name: 'Kyaw Zin',
+    initials: 'KZ',
+    role: 'Custodian',
+    phone: '+95987654321',
+  },
+];
 
 export const NOTIFICATIONS: NotificationData[] = [
   {

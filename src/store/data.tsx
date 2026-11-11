@@ -8,8 +8,9 @@ import {
   UPCOMING_TRIP,
   NOTIFICATIONS,
   TRIP_HISTORY,
+  TEAM_MEMBERS,
 } from '../services/mockData';
-import type { TripData, NotificationData, HistoryTrip, TripStage, User } from '../types';
+import type { TripData, NotificationData, HistoryTrip, TripStage, User, TeamMember } from '../types';
 
 interface AppState {
   user: User;
@@ -19,6 +20,7 @@ interface AppState {
   notifications: NotificationData[];
   unreadCount: number;
   tripHistory: HistoryTrip[];
+  teamMembers: TeamMember[];
   isRefreshing: boolean;
 
   advanceStage: () => void;
@@ -92,6 +94,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         tripStage,
         notifications,
         unreadCount,
+        teamMembers: TEAM_MEMBERS,
         tripHistory: TRIP_HISTORY,
         isRefreshing,
         advanceStage,
