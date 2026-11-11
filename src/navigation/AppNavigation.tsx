@@ -52,7 +52,6 @@ export const AppNavigation: React.FC = () => {
           {({ navigation }) => (
             <HomeScreen
               onRequestPress={() => navigation.navigate('RequestDetail')}
-              onTripMapPress={() => navigation.navigate('TripMapPickup')}
               onNotificationsPress={() => navigation.navigate('Notifications')}
               onHistoryPress={() => navigation.navigate('TripHistory')}
             />
@@ -79,7 +78,7 @@ export const AppNavigation: React.FC = () => {
             <TripMapScreen
               isPickup={true}
               onBackClick={() => navigation.goBack()}
-              onOpenDirections={() => { }}
+              onOpenDirections={() => {}}
               onArrived={() => navigation.navigate('OtpPickupRequest')}
             />
           )}
@@ -92,7 +91,7 @@ export const AppNavigation: React.FC = () => {
               type="pickup"
               onBackClick={() => navigation.goBack()}
               onRequestOtp={() => navigation.navigate('OtpPickupEnter')}
-              onVerify={() => { }}
+              onVerify={() => {}}
             />
           )}
         </Stack.Screen>
@@ -103,7 +102,7 @@ export const AppNavigation: React.FC = () => {
               step="enterCode"
               type="pickup"
               onBackClick={() => navigation.goBack()}
-              onRequestOtp={() => { }}
+              onRequestOtp={() => {}}
               onVerify={() => navigation.navigate('PickupVerified')}
             />
           )}
@@ -123,7 +122,7 @@ export const AppNavigation: React.FC = () => {
             <TripMapScreen
               isPickup={false}
               onBackClick={() => navigation.goBack()}
-              onOpenDirections={() => { }}
+              onOpenDirections={() => {}}
               onArrived={() => navigation.navigate('OtpDropOffRequest')}
             />
           )}
@@ -136,7 +135,7 @@ export const AppNavigation: React.FC = () => {
               type="dropOff"
               onBackClick={() => navigation.goBack()}
               onRequestOtp={() => navigation.navigate('OtpDropOffEnter')}
-              onVerify={() => { }}
+              onVerify={() => {}}
             />
           )}
         </Stack.Screen>
@@ -147,7 +146,7 @@ export const AppNavigation: React.FC = () => {
               step="enterCode"
               type="dropOff"
               onBackClick={() => navigation.goBack()}
-              onRequestOtp={() => { }}
+              onRequestOtp={() => {}}
               onVerify={() => navigation.navigate('ProofOfDelivery')}
             />
           )}
