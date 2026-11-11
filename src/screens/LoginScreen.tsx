@@ -17,6 +17,7 @@ import { useAnimatedMount } from '../hooks/useAnimatedMount';
 import { styles } from './LoginScreen.styles';
 import { Image } from 'react-native';
 import CashRouteLogo from '../assets/images/logo.png';
+
 interface LoginScreenProps {
   onLoginSuccess: () => void;
 }
@@ -33,30 +34,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const logoAnim = useAnimatedMount(0, 500);
   const formAnim = useAnimatedMount(150, 500);
   const btnAnim = useAnimatedMount(300, 500);
-
-  // const handleSignIn = () => {
-  //   if (isLocked || isLoading) return;
-  //   Keyboard.dismiss();
-  //   if (username.trim() && password.trim()) {
-  //     setIsLoading(true);
-  //     setLoginError(null);
-  //     setTimeout(() => {
-  //       setIsLoading(false);
-  //       onLoginSuccess();
-  //     }, 1200);
-  //     return;
-  //   }
-  //   const remaining = attemptsLeft - 1;
-  //   setAttemptsLeft(remaining);
-  //   if (remaining <= 0) {
-  //     setIsLocked(true);
-  //     setLoginError(null);
-  //   } else {
-  //     setLoginError(
-  //       `Incorrect username or password. ${remaining} attempts left before your account is locked.`,
-  //     );
-  //   }
-  // };
 
   const handleSignIn = async () => {
     if (isLocked || isLoading) return;
@@ -93,41 +70,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-
-  // const resetLockedState = () => {
-  //   setIsLocked(false);
-  //   setAttemptsLeft(5);
-  //   setLoginError(null);
-  //   setUsername('');
-  //   setPassword('');
-  // };
-
   return (
     <AuraBackground>
       <View style={styles.container}>
         <Animated.View style={[styles.logoRow, logoAnim]}>
           <View style={styles.logoIconContainer}>
-            <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
-              <Path
-                d="M22 4L6 12v10c0 11 7 18 16 20 9-2 16-9 16-20V12L22 4z"
-                fill={Colors.PrimaryGreen}
-                opacity={0.15}
-              />
-              <Path
-                d="M22 6L8 13v9c0 10 6.3 16.2 14 18 7.7-1.8 14-8 14-18v-9L22 6z"
-                stroke={Colors.PrimaryGreen}
-                strokeWidth={2}
-                fill="none"
-              />
-              <Path
-                d="M16 22l4 4 8-8"
-                stroke={Colors.PrimaryGreen}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
+            <Image
+              source={CashRouteLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
           <View style={styles.logoTextContainer}>
             <Text style={styles.appName}>CashRoute</Text>
@@ -178,11 +130,61 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               editable={!isLocked && !isLoading}
             />
             <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.showHideBtn}>
-              <Text style={styles.showHideText}>
-                {showPassword ? 'Hide' : 'Show'}
-              </Text>
+              onPress={() => setShowPassword(prev => !prev)}
+              style={styles.showHideBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            >
+              <Svg
+                width={22}
+                height={22}
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                {showPassword ? (
+                  <>
+                    {/* Eye with slash */}
+                    <Path
+                      d="M3 3L21 21"
+                      stroke={Colors.PrimaryGreen}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                    />
+                    <Path
+                      d="M10.6 10.6A2 2 0 0013.4 13.4"
+                      stroke={Colors.PrimaryGreen}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                    />
+                    <Path
+                      d="M9.9 5.2A10.8 10.8 0 0112 5c5.5 0 9.5 7 9.5 7a15.5 15.5 0 01-3.1 3.8M6.2 6.2C3.9 7.8 2.5 12 2.5 12s4 7 9.5 7c1.2 0 2.3-.3 3.3-.8"
+                      stroke={Colors.PrimaryGreen}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Open eye */}
+                    <Path
+                      d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+                      stroke={Colors.PrimaryGreen}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Circle
+                      cx={12}
+                      cy={12}
+                      r={3}
+                      stroke={Colors.PrimaryGreen}
+                      strokeWidth={2}
+                    />
+                  </>
+                )}
+              </Svg>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -190,32 +192,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <View style={styles.gap32} />
 
         <Animated.View style={btnAnim}>
-          {/* {isLocked ? (
-            <>
-              <View style={styles.disabledButton}>
-                <Text style={styles.disabledButtonText}>Sign in</Text>
-              </View>
-              <View style={styles.gap16} />
-              <SecondaryButton text="Back to login" onPress={resetLockedState} />
-              <View style={styles.gap16} />
-              <Text style={styles.helpText}>
-                Need help? Contact your Super Admin.
-              </Text>
-            </>
-          ) : (
-            <>
-              <PrimaryButton
-                text={isLoading ? 'Signing in...' : 'Sign in'}
-                onPress={handleSignIn}
-                loading={isLoading}
-              />
-              {attemptsLeft < 5 && (
-                <Text style={styles.demoText}>
-                  Demo: {5 - attemptsLeft}th failed attempt
-                </Text>
-              )}
-            </>
-          )} */}
+
           {isLocked ? (
             <>
               <View style={styles.disabledButton}>
