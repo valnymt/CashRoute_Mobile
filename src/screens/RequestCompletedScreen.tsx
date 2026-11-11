@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 import { useScaleAnimation, useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface RequestCompletedScreenProps {
