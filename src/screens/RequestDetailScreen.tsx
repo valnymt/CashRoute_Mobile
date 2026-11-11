@@ -2,22 +2,19 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface RequestDetailScreenProps {
   onBackClick: () => void;
   onStartTrip: () => void;
-  tripId?: string;
 }
 
 export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
   onBackClick,
   onStartTrip,
-  tripId,
 }) => {
-  const { currentTrip, getTripById } = useApp();
-  const trip = tripId ? getTripById(tripId) ?? currentTrip : currentTrip;
+  const { currentTrip } = useApp();
   const [isLoading, setIsLoading] = useState(false);
 
   const card1Anim = useAnimatedMount(0, 400);
@@ -42,11 +39,11 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
           <Animated.View style={card1Anim}>
             <GlassCard>
               <View style={styles.cardContent}>
-                <Text style={styles.requestId}>{trip.id}</Text>
-                <Text style={styles.amount}>{trip.currency} {trip.amount}</Text>
+                <Text style={styles.requestId}>{currentTrip.id}</Text>
+                <Text style={styles.amount}>{currentTrip.currency} {currentTrip.amount}</Text>
                 <View style={styles.timeSlotRow}>
                   <Text style={styles.timeSlotLabel}>Requested time slot</Text>
-                  <Text style={styles.timeSlotValue}>{trip.timeSlot}</Text>
+                  <Text style={styles.timeSlotValue}>{currentTrip.timeSlot}</Text>
                 </View>
               </View>
             </GlassCard>
@@ -68,8 +65,8 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
                   </View>
                   <View style={styles.routeTextContainer}>
                     <Text style={styles.routeType}>PICKUP</Text>
-                    <Text style={styles.routeTitle}>{trip.pickupName}</Text>
-                    <Text style={styles.routeAddr}>{trip.pickupAddr}</Text>
+                    <Text style={styles.routeTitle}>{currentTrip.pickupName}</Text>
+                    <Text style={styles.routeAddr}>{currentTrip.pickupAddr}</Text>
                   </View>
                 </View>
 
@@ -85,8 +82,8 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
                   </View>
                   <View style={styles.routeTextContainer}>
                     <Text style={styles.routeType}>DROP-OFF</Text>
-                    <Text style={styles.routeTitle}>{trip.dropOffName}</Text>
-                    <Text style={styles.routeAddr}>{trip.dropOffAddr}</Text>
+                    <Text style={styles.routeTitle}>{currentTrip.dropOffName}</Text>
+                    <Text style={styles.routeAddr}>{currentTrip.dropOffAddr}</Text>
                   </View>
                 </View>
               </View>
@@ -99,7 +96,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
             <GlassCard>
               <View style={styles.cardContent}>
                 <Text style={styles.remarksLabel}>Remarks</Text>
-                <Text style={styles.remarksText}>{trip.remarks}</Text>
+                <Text style={styles.remarksText}>{currentTrip.remarks}</Text>
               </View>
             </GlassCard>
           </Animated.View>
@@ -112,7 +109,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
                 <View style={styles.statusRow}>
                   <Text style={styles.statusLabel}>Status</Text>
                   <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{trip.status}</Text>
+                    <Text style={styles.statusBadgeText}>{currentTrip.status}</Text>
                   </View>
                 </View>
               </View>
@@ -122,14 +119,12 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
           <View style={{ height: 24 }} />
         </ScrollView>
 
-        {trip.status === 'Assigned' && (
-          <PrimaryButton
-            text={isLoading ? 'Accepting...' : 'Accept Assignment'}
-            onPress={handleAccept}
-            loading={isLoading}
-            style={{ marginBottom: 24 }}
-          />
-        )}
+        <PrimaryButton
+          text={isLoading ? 'Accepting...' : 'Accept Assignment'}
+          onPress={handleAccept}
+          loading={isLoading}
+          style={{ marginBottom: 24 }}
+        />
       </View>
     </AuraBackground>
   );

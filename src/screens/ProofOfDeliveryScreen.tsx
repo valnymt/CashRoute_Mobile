@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface ProofOfDeliveryScreenProps {
@@ -65,7 +65,17 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
 
           <View style={{ height: 12 }} />
 
-       
+          <Animated.View style={card2Anim}>
+            <GlassCard>
+              <View style={styles.cardContent}>
+                <Text style={styles.sectionTitle}>Denominations (provided)</Text>
+                <View style={{ height: 12 }} />
+                <DenominationRow text="10k x 15" />
+                <View style={{ height: 8 }} />
+                <DenominationRow text="5k x 20" />
+              </View>
+            </GlassCard>
+          </Animated.View>
 
           <View style={{ height: 12 }} />
 

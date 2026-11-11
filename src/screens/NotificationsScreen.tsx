@@ -2,16 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity } from 'react-native';
 import { AuraBackground, GlassCard, TopBar } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 
 interface NotificationsScreenProps {
   onBackClick: () => void;
-  onNotificationPress?: (tripId: string) => void;
 }
 
 export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   onBackClick,
-  onNotificationPress,
 }) => {
   const { notifications, markNotificationRead, markAllNotificationsRead, unreadCount } = useApp();
 
@@ -64,12 +62,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
               }}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => {
-                  markNotificationRead(item.id);
-                  if (item.relatedTripId && onNotificationPress) {
-                    onNotificationPress(item.relatedTripId);
-                  }
-                }}>
+                onPress={() => markNotificationRead(item.id)}>
                 <GlassCard style={{ marginBottom: 12 }}>
                   <View style={styles.notifCard}>
                     <View

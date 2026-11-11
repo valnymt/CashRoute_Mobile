@@ -20,7 +20,7 @@ export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
   Notifications: undefined;
-  RequestDetail: { tripId?: string } | undefined;
+  RequestDetail: undefined;
   TripMapPickup: undefined;
   OtpPickupRequest: undefined;
   OtpPickupEnter: undefined;
@@ -60,19 +60,15 @@ export const AppNavigation: React.FC = () => {
 
         <Stack.Screen name="Notifications">
           {({ navigation }) => (
-            <NotificationsScreen
-              onBackClick={() => navigation.goBack()}
-              onNotificationPress={(tripId) => navigation.navigate('RequestDetail', { tripId })}
-            />
+            <NotificationsScreen onBackClick={() => navigation.goBack()} />
           )}
         </Stack.Screen>
 
         <Stack.Screen name="RequestDetail">
-          {({ navigation, route }) => (
+          {({ navigation }) => (
             <RequestDetailScreen
               onBackClick={() => navigation.goBack()}
               onStartTrip={() => navigation.navigate('TripMapPickup')}
-              tripId={(route.params as any)?.tripId}
             />
           )}
         </Stack.Screen>

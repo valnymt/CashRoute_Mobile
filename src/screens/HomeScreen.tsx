@@ -11,7 +11,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, BottomNavBar, AnimatedPressable } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 import { usePulse } from '../hooks/useAnimatedMount';
 import type { BottomNavItem } from '../components';
 

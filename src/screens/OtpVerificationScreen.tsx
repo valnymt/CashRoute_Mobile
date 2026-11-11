@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, Animated } from 'react-native';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 export type OtpStep = 'request' | 'enterCode';
