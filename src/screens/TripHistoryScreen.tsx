@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { AuraBackground, GlassCard, BottomNavBar, AnimatedPressable } from '../components';
 import { Colors, Typography } from '../theme';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../store/data';
 import type { BottomNavItem } from '../components';
 
 interface TripHistoryScreenProps {

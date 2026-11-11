@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
-import { AppProvider } from './src/context/AppContext';
+import { AppProvider } from './src/store';
 import { AppNavigation } from './src/navigation/AppNavigation';
 
 function App() {

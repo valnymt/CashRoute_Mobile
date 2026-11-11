@@ -1,25 +1,18 @@
+// Shared app state — mirrors the portal's src/store/data.tsx role.
+// Reads fixtures from services/mockData for now; swap to httpApi later
+// without touching screens.
+
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import {
   CURRENT_TRIP,
   UPCOMING_TRIP,
   NOTIFICATIONS,
   TRIP_HISTORY,
-} from '../data/mockData';
-import type { TripData, NotificationData, HistoryTrip } from '../data/mockData';
-
-type TripStage =
-  | 'assigned'
-  | 'pickupEnRoute'
-  | 'pickupArrived'
-  | 'pickupVerified'
-  | 'dropOffEnRoute'
-  | 'dropOffArrived'
-  | 'dropOffVerified'
-  | 'proofSubmitted'
-  | 'completed';
+} from '../services/mockData';
+import type { TripData, NotificationData, HistoryTrip, TripStage, User } from '../types';
 
 interface AppState {
-  user: { name: string; initials: string; team: string; role: string };
+  user: User;
   currentTrip: TripData;
   upcomingTrip: TripData;
   tripStage: TripStage;
@@ -54,7 +47,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const user = {
+  const user: User = {
     name: 'Ngeyeemon',
     initials: 'NYM',
     team: 'Team A',
@@ -66,10 +59,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const advanceStage = useCallback(() => {
     setTripStage(prev => {
       const idx = STAGE_ORDER.indexOf(prev);
-      if (idx < STAGE_ORDER.length - 1) {
-        return STAGE_ORDER[idx + 1];
-      }
-      return prev;
+      return idx < STAGE_ORDER.length - 1 ? STAGE_ORDER[idx + 1] : prev;
     });
   }, []);
 

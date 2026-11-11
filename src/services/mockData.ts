@@ -1,44 +1,9 @@
-export interface TripData {
-  id: string;
-  type: 'Deposit' | 'Withdrawal';
-  amount: string;
-  currency: string;
-  pickupName: string;
-  pickupAddr: string;
-  dropOffName: string;
-  dropOffAddr: string;
-  contactName: string;
-  contactInfo: string;
-  dropOffContact: string;
-  dropOffContactInfo: string;
-  remarks: string;
-  timeSlot: string;
-  status: 'Assigned' | 'In Transit' | 'Completed' | 'Cancelled';
-  date: string;
-  team: string;
-}
+// Mock fixtures used by the store while there's no backend wired up yet.
+// Moved here from src/data/mockData.ts to match the portal's layout
+// (services/mockApi + services/mockData). When the real API lands,
+// src/services/httpApi.ts will replace these fixtures at the store layer.
 
-export interface NotificationData {
-  id: string;
-  title: string;
-  detail: string;
-  time: string;
-  isNew: boolean;
-  relatedTripId?: string;
-}
-
-export interface HistoryTrip {
-  id: string;
-  date: string;
-  branch: string;
-  amount: string;
-  status: 'Completed' | 'Cancelled';
-  type: string;
-  team: string;
-  duration: string;
-  onTime: boolean;
-  timeline: { label: string }[];
-}
+import type { TripData, NotificationData, HistoryTrip } from '../types';
 
 export const CURRENT_TRIP: TripData = {
   id: 'REQ-1048',
