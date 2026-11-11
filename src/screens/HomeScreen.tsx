@@ -17,11 +17,12 @@ import type { BottomNavItem } from '../components';
 
 interface HomeScreenProps {
   onRequestPress: () => void;
+  onTripMapPress: () => void;
   onNotificationsPress?: () => void;
   onHistoryPress?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotificationsPress, onHistoryPress }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMapPress, onNotificationsPress, onHistoryPress }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
   const { currentTrip, upcomingTrip, unreadCount, isRefreshing, refreshData } = useApp();
   const pulseOpacity = usePulse();
@@ -172,7 +173,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onNotifi
 
                     <View style={{ height: 12 }} />
 
-                    <TouchableOpacity style={styles.viewDetailsBtn} onPress={onRequestPress} activeOpacity={0.8}>
+                    <TouchableOpacity style={styles.viewDetailsBtn} onPress={onTripMapPress} activeOpacity={0.8}>
                       <Text style={styles.viewDetailsText}>View Details</Text>
                     </TouchableOpacity>
                   </View>
