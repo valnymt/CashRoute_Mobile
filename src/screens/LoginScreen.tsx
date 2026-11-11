@@ -8,11 +8,16 @@ import {
   Keyboard,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { login } from '../services/authApi';
+import { ApiError } from '../services/api';
+import { saveToken } from '../services/authStorage';
 import { AuraBackground, PrimaryButton, SecondaryButton } from '../components';
 import { Colors } from '../theme';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
 import { Image } from 'react-native';
 import CashRouteLogo from '../assets/images/logo.png';
+import { styles } from './LoginScreen.styles';
+
 interface LoginScreenProps {
   onLoginSuccess: () => void;
 }
@@ -21,7 +26,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState(5);
+  // const [attemptsLeft, setAttemptsLeft] = useState(5);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,37 +35,73 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const formAnim = useAnimatedMount(150, 500);
   const btnAnim = useAnimatedMount(300, 500);
 
-  const handleSignIn = () => {
+  // const handleSignIn = () => {
+  //   if (isLocked || isLoading) return;
+  //   Keyboard.dismiss();
+  //   if (username.trim() && password.trim()) {
+  //     setIsLoading(true);
+  //     setLoginError(null);
+  //     setTimeout(() => {
+  //       setIsLoading(false);
+  //       onLoginSuccess();
+  //     }, 1200);
+  //     return;
+  //   }
+  //   const remaining = attemptsLeft - 1;
+  //   setAttemptsLeft(remaining);
+  //   if (remaining <= 0) {
+  //     setIsLocked(true);
+  //     setLoginError(null);
+  //   } else {
+  //     setLoginError(
+  //       `Incorrect username or password. ${remaining} attempts left before your account is locked.`,
+  //     );
+  //   }
+  // };
+
+  const handleSignIn = async () => {
     if (isLocked || isLoading) return;
+
     Keyboard.dismiss();
-    if (username.trim() && password.trim()) {
-      setIsLoading(true);
-      setLoginError(null);
-      setTimeout(() => {
-        setIsLoading(false);
-        onLoginSuccess();
-      }, 1200);
+
+    if (!username.trim() || !password) {
+      setLoginError('Please enter your username and password.');
       return;
     }
-    const remaining = attemptsLeft - 1;
-    setAttemptsLeft(remaining);
-    if (remaining <= 0) {
-      setIsLocked(true);
+
+    try {
+      setIsLoading(true);
       setLoginError(null);
-    } else {
-      setLoginError(
-        `Incorrect username or password. ${remaining} attempts left before your account is locked.`,
-      );
+
+      const response = await login(username.trim(), password);
+
+      await saveToken(response.token);
+
+      onLoginSuccess();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 423) {
+        setIsLocked(true);
+        setLoginError(error.message);
+      } else {
+        setLoginError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to sign in. Please try again.',
+        );
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const resetLockedState = () => {
-    setIsLocked(false);
-    setAttemptsLeft(5);
-    setLoginError(null);
-    setUsername('');
-    setPassword('');
-  };
+
+  // const resetLockedState = () => {
+  //   setIsLocked(false);
+  //   setAttemptsLeft(5);
+  //   setLoginError(null);
+  //   setUsername('');
+  //   setPassword('');
+  // };
 
   return (
     <AuraBackground>
@@ -184,7 +225,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <View style={styles.gap32} />
 
         <Animated.View style={btnAnim}>
-          {isLocked ? (
+          {/* {isLocked ? (
             <>
               <View style={styles.disabledButton}>
                 <Text style={styles.disabledButtonText}>Sign in</Text>
@@ -209,6 +250,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 </Text>
               )}
             </>
+          )} */}
+          {isLocked ? (
+            <>
+              <View style={styles.disabledButton}>
+                <Text style={styles.disabledButtonText}>Account Locked</Text>
+              </View>
+
+              <View style={styles.gap16} />
+
+              <Text style={styles.helpText}>
+                Please contact your Super Admin to unlock your account.
+              </Text>
+            </>
+          ) : (
+            <PrimaryButton
+              text={isLoading ? 'Signing in...' : 'Sign in'}
+              onPress={handleSignIn}
+              loading={isLoading}
+            />
           )}
         </Animated.View>
 
