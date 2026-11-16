@@ -10,14 +10,43 @@ import {
   Alert,
 } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
-import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
+import { Map, Camera, Marker, GeoJSONSource, Layer, } from '@maplibre/maplibre-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
-
+import { apiRequest } from '../services/api';
+import { getToken } from '../services/authStorage';
+import { useApp } from '../store/data';
 // const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_HEIGHT * 0.55;
+
+interface TripLocation {
+  name: string;
+  code: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface TripDetails {
+  id: string;
+  date: string;
+  branchId: string;
+  type: 'Deposit' | 'Withdrawal';
+  pickup: TripLocation;
+  dropoff: TripLocation;
+  teamId: string;
+  amount: number;
+  currency: string;
+  durationMin: number;
+  onTime: boolean;
+}
+
+interface RouteGeometry {
+  type: 'LineString';
+  coordinates: [number, number][];
+}
 
 interface TripMapScreenProps {
   isPickup?: boolean;
@@ -32,9 +61,13 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   onOpenDirections,
   onArrived,
 }) => {
+  const { currentTrip } = useApp();
   const cameraRef = useRef(null);
-  const locationName = isPickup ? 'Orchard Branch' : 'HQ Cash Centre';
-  const address = isPickup ? '238 Orchard Rd, Yangon' : '1 Raffles Quay, Yangon';
+  const [tripDetails, setTripDetails] = useState<TripDetails | null>(null);
+  const activeLocation = isPickup ? tripDetails?.pickup : tripDetails?.dropoff;
+  const locationName = activeLocation?.name ?? 'Loading destination...';
+  const address = activeLocation?.address ?? '';
+  const [routeGeometry, setRouteGeometry] = useState<RouteGeometry | null>(null);
   const stepText = isPickup ? 'STEP 1 OF 2 · PICKUP' : 'STEP 2 OF 2 · DROP-OFF';
   const arrivedText = isPickup ? 'Arrived at Pickup' : 'Arrived at Drop-off';
 
@@ -43,6 +76,36 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     longitude: number;
   } | null>(null);
 
+  useEffect(() => {
+    const fetchTripDetails = async () => {
+      try {
+        const token = await getToken();
+
+        if (!token) {
+          console.log('No saved authentication token found.');
+          return;
+        }
+
+        const response = await apiRequest<{ data: TripDetails }>(
+          `/trips/${currentTrip.id}`,
+          { method: 'GET' },
+          token,
+        );
+
+        setTripDetails(response.data);
+
+        console.log(
+          'Trip details loaded:',
+          JSON.stringify(response.data, null, 2),
+        );
+      } catch (error) {
+        console.error('Trip API error:', error);
+        Alert.alert('Trip Error', 'Unable to load trip details.');
+      }
+    };
+
+    fetchTripDetails();
+  }, [currentTrip.id]);
 
   useEffect(() => {
     let watchId: number | null = null;
@@ -118,20 +181,78 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!tripDetails?.pickup || !tripDetails?.dropoff) {
+      return;
+    }
+
+    const fetchRoadRoute = async () => {
+      try {
+        const { pickup, dropoff } = tripDetails;
+
+        const url =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${pickup.longitude},${pickup.latitude};` +
+          `${dropoff.longitude},${dropoff.latitude}` +
+          `?overview=full&geometries=geojson`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Routing server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.code !== 'Ok' || !result.routes?.length) {
+          throw new Error(result.message || 'No road route found.');
+        }
+
+        setRouteGeometry(result.routes[0].geometry);
+
+        console.log(
+          'Road route loaded:',
+          result.routes[0].distance / 1000,
+          'km',
+        );
+
+        console.log(
+          'Estimated driving time:',
+          result.routes[0].duration / 60,
+          'minutes',
+        );
+      } catch (error) {
+        console.error('Road route error:', error);
+        Alert.alert(
+          'Route Error',
+          error instanceof Error
+            ? error.message
+            : 'Unable to load the road route.',
+        );
+      }
+    };
+
+    fetchRoadRoute();
+  }, [tripDetails]);
+
 
   useEffect(() => {
-    if (!currentLocation) return;
+    if (!tripDetails?.pickup || !tripDetails?.dropoff) return;
+
+    const centerLongitude =
+      (tripDetails.pickup.longitude +
+        tripDetails.dropoff.longitude) / 2;
+
+    const centerLatitude =
+      (tripDetails.pickup.latitude +
+        tripDetails.dropoff.latitude) / 2;
 
     cameraRef.current?.flyTo({
-      center: [
-        currentLocation.longitude,
-        currentLocation.latitude,
-      ],
-      zoom: 15,
-      duration: 800,
+      center: [centerLongitude, centerLatitude],
+      zoom: 11.5,
+      duration: 1000,
     });
-
-  }, [currentLocation]);
+  }, [tripDetails]);
 
   return (
     <View style={styles.container}>
@@ -148,6 +269,54 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             zoom: 12,
           }}
         />
+        {/* Road route */}
+        {routeGeometry && (
+          <GeoJSONSource
+            id="trip-route-source"
+            data={routeGeometry}
+          >
+            <Layer
+              id="trip-route-line"
+              type="line"
+              paint={{
+                'line-color': '#2563EB',
+                'line-width': 5,
+                'line-opacity': 0.9,
+              }}
+              layout={{
+                'line-cap': 'round',
+                'line-join': 'round',
+              }}
+            />
+          </GeoJSONSource>
+        )}
+        {/* Pickup destination */}
+        {tripDetails?.pickup && (
+          <Marker
+            lngLat={[
+              tripDetails.pickup.longitude,
+              tripDetails.pickup.latitude,
+            ]}
+          >
+            <View style={styles.pickupMarker}>
+              <Text style={styles.markerText}>P</Text>
+            </View>
+          </Marker>
+        )}
+
+        {/* Drop-off destination */}
+        {tripDetails?.dropoff && (
+          <Marker
+            lngLat={[
+              tripDetails.dropoff.longitude,
+              tripDetails.dropoff.latitude,
+            ]}
+          >
+            <View style={styles.dropoffMarker}>
+              <Text style={styles.markerText}>D</Text>
+            </View>
+          </Marker>
+        )}
         {currentLocation && (
           <Marker
             lngLat={[
@@ -221,6 +390,33 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: MAP_HEIGHT,
+  },
+  pickupMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#16A34A',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  dropoffMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E53935',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  markerText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   currentLocationMarker: {
     width: 32,

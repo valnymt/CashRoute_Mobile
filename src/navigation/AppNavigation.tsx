@@ -41,7 +41,7 @@ export const AppNavigation: React.FC = () => {
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
-        initialRouteName="Home">
+        initialRouteName="Login">
         <Stack.Screen name="Login">
           {({ navigation }) => (
             <LoginScreen onLoginSuccess={() => navigation.replace('Home')} />

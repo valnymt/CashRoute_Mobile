@@ -26,13 +26,26 @@ export interface TripData {
   dropOffAddr: string;
   contactName: string;
   contactInfo: string;
+  // Phone the delivery team can tap-to-call on the pickup contact.
+  pickupContactPhone?: string;
   dropOffContact: string;
   dropOffContactInfo: string;
+  dropOffContactPhone?: string;
   remarks: string;
   timeSlot: string;
   status: TripStatus;
   date: string;
   team: string;
+  // Who raised this on the portal — the delivery team needs to know
+  // who to ping if the remarks are unclear.
+  createdBy?: string;
+  createdByRole?: 'Maker' | 'Checker' | 'Super Admin';
+  // Who approved it (the Checker who assigned the team).
+  approvedBy?: string;
+  approvedByRole?: 'Checker' | 'Super Admin';
+  approvedAt?: string;
+  // The "complete within" SLA the Maker picked ("Within 3 hours").
+  completeWithin?: string;
 }
 
 export interface NotificationData {

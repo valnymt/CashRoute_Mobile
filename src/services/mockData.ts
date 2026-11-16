@@ -6,7 +6,7 @@
 import type { TripData, NotificationData, HistoryTrip, TeamMember } from '../types';
 
 export const CURRENT_TRIP: TripData = {
-  id: 'REQ-1048',
+  id: 'REQ-1068',
   type: 'Deposit',
   amount: '250,000',
   currency: 'MMK',
@@ -16,13 +16,21 @@ export const CURRENT_TRIP: TripData = {
   dropOffAddr: '1 Raffles Quay, Myanmar',
   contactName: 'Amy Tan · Orchard Branch',
   contactInfo: 'SMS +95912345678 · a•••@bank.com',
+  pickupContactPhone: '+95912345678',
   dropOffContact: 'Ops Desk · HQ Cash Centre',
   dropOffContactInfo: 'SMS +95987654321 · ops•••@bank.com',
+  dropOffContactPhone: '+95987654321',
   remarks: 'Daily surplus cash. Contact the branch manager on arrival.',
   timeSlot: '14 Oct · 10:00 – 12:00',
   status: 'Assigned',
   date: '14 Oct 2026',
-  team: 'Team A',
+  team: 'Team C',
+  createdBy: 'Thi Kha',
+  createdByRole: 'Maker',
+  approvedBy: 'Zayar Min',
+  approvedByRole: 'Checker',
+  approvedAt: '14 Oct 2026 · 09:12',
+  completeWithin: 'Within 3 hours',
 };
 
 export const UPCOMING_TRIP: TripData = {
