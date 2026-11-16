@@ -129,7 +129,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
             <Text style={styles.sectionLabel}>CURRENT TRIP</Text>
 
             <Animated.View style={{ opacity: cardAnim, transform: [{ translateY: cardSlide }] }}>
-              <AnimatedPressable onPress={onRequestPress}>
+              <AnimatedPressable onPress={onTripMapPress}>
                 <GlassCard style={{ marginBottom: 12 }}>
                   <View style={styles.cardContent}>
                     <View style={styles.cardHeader}>
@@ -182,7 +182,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
             </Animated.View>
 
             {/* Upcoming */}
-            <Text style={styles.sectionLabel}>UPCOMING</Text>
+            {/* <Text style={styles.sectionLabel}>UPCOMING</Text>
 
             <Animated.View style={{ opacity: upcomingAnim, transform: [{ translateY: upcomingSlide }] }}>
               <GlassCard style={{ marginBottom: 12 }}>
@@ -200,7 +200,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
               </GlassCard>
             </Animated.View>
 
-            <View style={{ height: 16 }} />
+            <View style={{ height: 16 }} /> */}
           </ScrollView>
         </View>
 

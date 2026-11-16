@@ -1,22 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  PermissionsAndroid,
+  Platform,
+  Alert,
 } from 'react-native';
-import Svg, {
-  Line,
-  Circle,
-  Path,
-  Text as SvgText,
-} from 'react-native-svg';
+import Geolocation from 'react-native-geolocation-service';
+import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { PrimaryButton, SecondaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_HEIGHT * 0.55;
 
 interface TripMapScreenProps {
@@ -32,115 +32,135 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   onOpenDirections,
   onArrived,
 }) => {
+  const cameraRef = useRef(null);
   const locationName = isPickup ? 'Orchard Branch' : 'HQ Cash Centre';
   const address = isPickup ? '238 Orchard Rd, Yangon' : '1 Raffles Quay, Yangon';
   const stepText = isPickup ? 'STEP 1 OF 2 · PICKUP' : 'STEP 2 OF 2 · DROP-OFF';
   const arrivedText = isPickup ? 'Arrived at Pickup' : 'Arrived at Drop-off';
 
-  const w = SCREEN_WIDTH;
-  const h = MAP_HEIGHT;
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
-  // Route points
-  const currentX = w * 0.25;
-  const currentY = h * 0.72;
-  const pointAX = w * 0.45;
-  const pointAY = h * 0.48;
-  const pointBX = w * 0.75;
-  const pointBY = h * 0.18;
 
-  // Cubic bezier control points for solid route
-  const solidC1x = currentX + w * 0.05;
-  const solidC1y = currentY - h * 0.1;
-  const solidC2x = pointAX - w * 0.05;
-  const solidC2y = pointAY + h * 0.1;
+  useEffect(() => {
+    let watchId: number | null = null;
+    let isMounted = true;
 
-  // Cubic bezier control points for dashed route
-  const dashC1x = pointAX + w * 0.08;
-  const dashC1y = pointAY - h * 0.08;
-  const dashC2x = pointBX - w * 0.08;
-  const dashC2y = pointBY + h * 0.1;
+    const initializeLocation = async () => {
+      if (Platform.OS !== 'android') {
+        return;
+      }
+
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        ]);
+
+        const fineLocation =
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+        const coarseLocation =
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION];
+
+        const hasPermission =
+          fineLocation === PermissionsAndroid.RESULTS.GRANTED ||
+          coarseLocation === PermissionsAndroid.RESULTS.GRANTED;
+
+        if (!hasPermission) {
+          Alert.alert(
+            'Location Permission Required',
+            'Please allow location access to use CashRoute tracking.',
+          );
+          return;
+        }
+
+        console.log('Location permission granted');
+
+        watchId = Geolocation.watchPosition(
+          position => {
+            if (!isMounted) return;
+
+            const { latitude, longitude } = position.coords;
+
+            setCurrentLocation({ latitude, longitude });
+
+            console.log('Updated GPS:', latitude, longitude);
+          },
+          error => {
+            console.log('GPS Error:', error.code, error.message);
+          },
+          {
+            enableHighAccuracy: true,
+            distanceFilter: 5,
+            interval: 3000,
+            fastestInterval: 2000,
+            maximumAge: 5000,
+            forceRequestLocation: true,
+            showLocationDialog: true,
+          },
+        );
+      } catch (error) {
+        console.log('Location initialization error:', error);
+      }
+    };
+
+    initializeLocation();
+
+    return () => {
+      isMounted = false;
+
+      if (watchId !== null) {
+        Geolocation.clearWatch(watchId);
+      }
+    };
+  }, []);
+
+
+  useEffect(() => {
+    if (!currentLocation) return;
+
+    cameraRef.current?.flyTo({
+      center: [
+        currentLocation.longitude,
+        currentLocation.latitude,
+      ],
+      zoom: 15,
+      duration: 800,
+    });
+
+  }, [currentLocation]);
 
   return (
     <View style={styles.container}>
       {/* Map area */}
-      <Svg width={w} height={h} style={styles.map}>
-        {/* Street grid - horizontal */}
-        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-          <Line
-            key={`h${i}`}
-            x1={0}
-            y1={(h * i) / 9}
-            x2={w}
-            y2={(h * i) / 9}
-            stroke="#2A1650"
-            strokeWidth={1.5}
-          />
-        ))}
-        {/* Street grid - vertical */}
-        {[1, 2, 3, 4, 5, 6].map(i => (
-          <Line
-            key={`v${i}`}
-            x1={(w * i) / 7}
-            y1={0}
-            x2={(w * i) / 7}
-            y2={h}
-            stroke="#2A1650"
-            strokeWidth={1.5}
-          />
-        ))}
-        {/* Diagonal streets */}
-        <Line x1={0} y1={h * 0.7} x2={w} y2={h * 0.15} stroke="#2A1650" strokeWidth={1.5} />
-        <Line x1={0} y1={h * 0.35} x2={w * 0.7} y2={h} stroke="#2A1650" strokeWidth={1.5} />
-
-        {/* Solid green route: current -> A */}
-        <Path
-          d={`M${currentX},${currentY} C${solidC1x},${solidC1y} ${solidC2x},${solidC2y} ${pointAX},${pointAY}`}
-          stroke={Colors.PrimaryGreen}
-          strokeWidth={4}
-          strokeLinecap="round"
-          fill="none"
+      <Map
+        style={styles.map}
+        mapStyle="https://tiles.openfreemap.org/styles/liberty"
+        androidView="texture"
+      >
+        <Camera
+          ref={cameraRef}
+          initialViewState={{
+            center: [96.1561, 16.8661],
+            zoom: 12,
+          }}
         />
-
-        {/* Dashed route: A -> B */}
-        <Path
-          d={`M${pointAX},${pointAY} C${dashC1x},${dashC1y} ${dashC2x},${dashC2y} ${pointBX},${pointBY}`}
-          stroke="rgba(255,255,255,0.4)"
-          strokeWidth={3}
-          strokeLinecap="round"
-          strokeDasharray="16,12"
-          fill="none"
-        />
-
-        {/* Current location - blue dot */}
-        <Circle cx={currentX} cy={currentY} r={14} fill={Colors.BlueDot} />
-        <Circle cx={currentX} cy={currentY} r={7} fill={Colors.White} />
-
-        {/* Point A - green marker */}
-        <Circle cx={pointAX} cy={pointAY} r={24} fill="rgba(150,215,76,0.2)" />
-        <Circle cx={pointAX} cy={pointAY} r={20} fill="none" stroke={Colors.PrimaryGreen} strokeWidth={3} />
-        <Circle cx={pointAX} cy={pointAY} r={14} fill={Colors.PrimaryGreen} />
-        <SvgText
-          x={pointAX}
-          y={pointAY + 5}
-          textAnchor="middle"
-          fill={Colors.Black}
-          fontSize={12}
-          fontWeight="bold">
-          A
-        </SvgText>
-
-        {/* Point B - purple marker */}
-        <Circle cx={pointBX} cy={pointBY} r={14} fill={Colors.PurpleAccent} />
-        <SvgText
-          x={pointBX}
-          y={pointBY + 5}
-          textAnchor="middle"
-          fill={Colors.White}
-          fontSize={12}
-          fontWeight="bold">
-          B
-        </SvgText>
-      </Svg>
+        {currentLocation && (
+          <Marker
+            lngLat={[
+              currentLocation.longitude,
+              currentLocation.latitude,
+            ]}
+          >
+            <View style={styles.currentLocationMarker}>
+              <View style={styles.currentLocationDot} />
+            </View>
+          </Marker>
+        )}
+      </Map>
 
       {/* Top bar overlay */}
       <View style={styles.topBar}>
@@ -199,6 +219,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
+    right: 0,
+    height: MAP_HEIGHT,
+  },
+  currentLocationMarker: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(52, 152, 219, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  currentLocationDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#2196F3',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   topBar: {
     position: 'absolute',
