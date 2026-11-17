@@ -73,6 +73,12 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   onArrived,
 }) => {
   const { currentTrip } = useApp();
+  useEffect(() => {
+    console.log(
+      '[MAP] Current assignment:',
+      JSON.stringify(currentTrip, null, 2),
+    );
+  }, [currentTrip]);
   const cameraRef = useRef<any>(null);
 
   const [tripDetails, setTripDetails] = useState<TripDetails | null>(null);
@@ -262,6 +268,8 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     const fetchRoadRoute = async () => {
       try {
         const { pickup, dropoff } = tripDetails;
+        console.log('ROUTE PICKUP:', pickup.longitude, pickup.latitude);
+        console.log('ROUTE DROPOFF:', dropoff.longitude, dropoff.latitude);
         const url =
           `https://router.project-osrm.org/route/v1/driving/` +
           `${pickup.longitude},${pickup.latitude};` +
@@ -301,6 +309,20 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     });
   }, [tripDetails]);
 
+  useEffect(() => {
+    if (!tripDetails?.pickup || !tripDetails?.dropoff) return;
+
+    console.log('PICKUP MARKER:', {
+      longitude: tripDetails.pickup.longitude,
+      latitude: tripDetails.pickup.latitude,
+    });
+
+    console.log('DROPOFF MARKER:', {
+      longitude: tripDetails.dropoff.longitude,
+      latitude: tripDetails.dropoff.latitude,
+    });
+
+  }, [tripDetails]);
   return (
     <View style={styles.container}>
       <Map
@@ -310,7 +332,17 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       >
         <Camera
           ref={cameraRef}
-          initialViewState={{ center: [96.1561, 16.8661], zoom: 12 }}
+          initialViewState={{
+            center: [
+              tripDetails
+                ? (tripDetails.pickup.longitude + tripDetails.dropoff.longitude) / 2
+                : 96.1561,
+              tripDetails
+                ? (tripDetails.pickup.latitude + tripDetails.dropoff.latitude) / 2
+                : 16.8661,
+            ],
+            zoom: 11.5,
+          }}
         />
 
         {routeGeometry && (

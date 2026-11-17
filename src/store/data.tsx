@@ -9,7 +9,6 @@ import React, {
 import {
   NOTIFICATIONS,
   TRIP_HISTORY,
-  TEAM_MEMBERS,
 } from '../services/mockData';
 
 import { getMyAssignments } from '../services/assignment';
@@ -103,6 +102,19 @@ function mapAssignmentToTrip(item: BackendAssignment): TripData {
   };
 }
 
+function mapTeamMembers(item: BackendAssignment): TeamMember[] {
+  return item.team?.members.map(member => ({
+    name: member.name,
+    initials: member.name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase(),
+    role: member.role || 'Team Member',
+    phone: member.phone || '',
+  })) ?? [];
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -112,6 +124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [currentTrip, setCurrentTrip] = useState<TripData | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   const user: User = {
     name: 'Ngeyeemon',
@@ -155,9 +168,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (activeAssignments.length > 0) {
-        setCurrentTrip(mapAssignmentToTrip(activeAssignments[0]));
+        const assignment = activeAssignments[0];
+
+        setCurrentTrip(mapAssignmentToTrip(assignment));
+        setTeamMembers(mapTeamMembers(assignment));
       } else {
         setCurrentTrip(null);
+        setTeamMembers([]);
       }
     } catch (error) {
       console.error('Failed to load assignments:', error);
@@ -189,7 +206,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         tripStage,
         notifications,
         unreadCount,
-        teamMembers: TEAM_MEMBERS,
+        teamMembers,
         tripHistory: TRIP_HISTORY,
         isRefreshing,
         assignmentError,

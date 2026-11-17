@@ -104,6 +104,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
 
       // Navigate only after the backend confirms acceptance.
       onStartTrip();
+      await refreshData();
     } catch (error) {
       console.error('Accept assignment error:', error);
 
@@ -373,14 +374,17 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
           )}
         </ScrollView>
 
-        {currentTrip && (
-          <PrimaryButton
-            text={isLoading ? 'Accepting...' : 'Accept Assignment'}
-            onPress={handleAccept}
-            loading={isLoading}
-            style={styles.acceptBtn}
-          />
-        )}
+        {currentTrip &&
+          currentTrip.status !== 'Assigned' &&
+          currentTrip.status !== 'In Transit' &&
+          currentTrip.status !== 'Completed' && (
+            <PrimaryButton
+              text={isLoading ? 'Accepting...' : 'Accept Assignment'}
+              onPress={handleAccept}
+              loading={isLoading}
+              style={styles.acceptBtn}
+            />
+          )}
       </View>
     </AuraBackground>
   );

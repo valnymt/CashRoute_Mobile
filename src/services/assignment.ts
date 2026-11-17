@@ -10,6 +10,18 @@ export interface AssignmentLocation {
     contact_phone: string;
 }
 
+export interface BackendTeamMember {
+    id: number;
+    name: string;
+    role: string | null;
+    phone: string | null;
+}
+
+export interface BackendTeam {
+    name: string;
+    members: BackendTeamMember[];
+}
+
 export interface BackendAssignment {
     cash_request_id: number;
     reference: string;
@@ -21,6 +33,7 @@ export interface BackendAssignment {
     remarks: string;
     status: string;
     team_id: number;
+    team: BackendTeam | null;
     pickup: AssignmentLocation;
     dropoff: AssignmentLocation;
     assigned_at: string | null;
