@@ -24,7 +24,7 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMapPress, onNotificationsPress, onHistoryPress }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
-  const { currentTrip, upcomingTrip, unreadCount, isRefreshing, refreshData } = useApp();
+  const { currentTrip, assignmentError, unreadCount, isRefreshing, refreshData } = useApp();
   const pulseOpacity = usePulse();
 
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -66,7 +66,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
           <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerSlide }] }]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>My Assignments</Text>
-              <Text style={styles.subtitle}>Ngeyeemon · Team A (Driver)</Text>
+              <Text style={styles.subtitle}>Your delivery team assignments</Text>
             </View>
             <View style={styles.headerIcons}>
               <TouchableOpacity onPress={onNotificationsPress} style={styles.bellContainer}>
@@ -99,20 +99,39 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
           </Animated.View>
 
           {/* New assignment banner */}
-          <Animated.View style={{ opacity: bannerAnim, transform: [{ translateY: bannerSlide }] }}>
-            <AnimatedPressable onPress={onRequestPress}>
-              <View style={styles.newAssignmentBanner}>
-                <View style={styles.bannerLeft}>
-                  <Animated.View style={[styles.greenDotSmall, { opacity: pulseOpacity }]} />
-                  <View>
-                    <Text style={styles.bannerTitle}>New assignment</Text>
-                    <Text style={styles.bannerSub}>{currentTrip.id} · {currentTrip.type} · tap to view</Text>
+          {currentTrip && (
+            <Animated.View
+              style={{
+                opacity: bannerAnim,
+                transform: [{ translateY: bannerSlide }],
+              }}
+            >
+              <AnimatedPressable onPress={onRequestPress}>
+                <View style={styles.newAssignmentBanner}>
+                  <View style={styles.bannerLeft}>
+                    <Animated.View
+                      style={[
+                        styles.greenDotSmall,
+                        { opacity: pulseOpacity },
+                      ]}
+                    />
+
+                    <View>
+                      <Text style={styles.bannerTitle}>
+                        Active assignment
+                      </Text>
+
+                      <Text style={styles.bannerSub}>
+                        {currentTrip.id} · {currentTrip.type} · tap to view
+                      </Text>
+                    </View>
                   </View>
+
+                  <Text style={styles.bannerChevron}>›</Text>
                 </View>
-                <Text style={styles.bannerChevron}>›</Text>
-              </View>
-            </AnimatedPressable>
-          </Animated.View>
+              </AnimatedPressable>
+            </Animated.View>
+          )}
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -126,60 +145,138 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
               />
             }>
             {/* Current Trip */}
+
+            {/* Current Trip */}
             <Text style={styles.sectionLabel}>CURRENT TRIP</Text>
 
-            <Animated.View style={{ opacity: cardAnim, transform: [{ translateY: cardSlide }] }}>
-              <AnimatedPressable onPress={onTripMapPress}>
-                <GlassCard style={{ marginBottom: 12 }}>
-                  <View style={styles.cardContent}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.requestId}>{currentTrip.id}</Text>
-                      <View style={styles.depositBadge}>
-                        <Text style={styles.depositBadgeText}>{currentTrip.type}</Text>
+            {currentTrip ? (
+              <Animated.View
+                style={{
+                  opacity: cardAnim,
+                  transform: [{ translateY: cardSlide }],
+                }}
+              >
+                <AnimatedPressable onPress={onTripMapPress}>
+                  <GlassCard style={{ marginBottom: 12 }}>
+                    <View style={styles.cardContent}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.requestId}>
+                          {currentTrip.id}
+                        </Text>
+
+                        <View style={styles.depositBadge}>
+                          <Text style={styles.depositBadgeText}>
+                            {currentTrip.type}
+                          </Text>
+                        </View>
                       </View>
+
+                      <Text style={styles.amountLabel}>Amount</Text>
+
+                      <Text style={styles.amount}>
+                        {currentTrip.currency} {currentTrip.amount}
+                      </Text>
+
+                      <View style={{ height: 12 }} />
+
+                      {/* Pickup */}
+                      <View style={styles.routeItem}>
+                        <View
+                          style={[
+                            styles.routeMarker,
+                            { backgroundColor: Colors.PrimaryGreen },
+                          ]}
+                        >
+                          <Text style={styles.markerLetter}>A</Text>
+                        </View>
+
+                        <View style={styles.routeTextBlock}>
+                          <Text style={styles.routeType}>PICKUP</Text>
+                          <Text style={styles.routePlace}>
+                            {currentTrip.pickupName}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Drop-off */}
+                      <View style={styles.routeItem}>
+                        <View
+                          style={[
+                            styles.routeMarker,
+                            { backgroundColor: Colors.PurpleAccent },
+                          ]}
+                        >
+                          <Text style={styles.markerLetter}>B</Text>
+                        </View>
+
+                        <View style={styles.routeTextBlock}>
+                          <Text style={styles.routeType}>DROP-OFF</Text>
+                          <Text style={styles.routePlace}>
+                            {currentTrip.dropOffName}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Status */}
+                      <View style={styles.statusRow}>
+                        <Text style={styles.statusLabel}>Status</Text>
+
+                        <View style={styles.assignedBadge}>
+                          <Text style={styles.assignedBadgeText}>
+                            {currentTrip.status}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={{ height: 12 }} />
+
+                      <TouchableOpacity
+                        style={styles.viewDetailsBtn}
+                        onPress={onTripMapPress}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.viewDetailsText}>
+                          View Details
+                        </Text>
+                      </TouchableOpacity>
                     </View>
+                  </GlassCard>
+                </AnimatedPressable>
+              </Animated.View>
+            ) : (
+              <GlassCard style={{ marginBottom: 12 }}>
+                <View style={styles.emptyAssignment}>
+                  <Text style={styles.emptyAssignmentTitle}>
+                    {assignmentError
+                      ? 'Unable to load assignments'
+                      : isRefreshing
+                        ? 'Loading assignments...'
+                        : 'No active assignments'}
+                  </Text>
 
-                    <Text style={styles.amountLabel}>Amount</Text>
-                    <Text style={styles.amount}>{currentTrip.currency} {currentTrip.amount}</Text>
+                  <Text style={styles.emptyAssignmentText}>
+                    {assignmentError
+                      ? assignmentError
+                      : isRefreshing
+                        ? 'Please wait while we retrieve your team assignments.'
+                        : 'Your team currently has no active cash delivery assignments.'}
+                  </Text>
 
-                    <View style={{ height: 12 }} />
-
-                    {/* Route */}
-                    <View style={styles.routeItem}>
-                      <View style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
-                        <Text style={styles.markerLetter}>A</Text>
-                      </View>
-                      <View style={styles.routeTextBlock}>
-                        <Text style={styles.routeType}>PICKUP</Text>
-                        <Text style={styles.routePlace}>{currentTrip.pickupName}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.routeItem}>
-                      <View style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
-                        <Text style={styles.markerLetter}>B</Text>
-                      </View>
-                      <View style={styles.routeTextBlock}>
-                        <Text style={styles.routeType}>DROP-OFF</Text>
-                        <Text style={styles.routePlace}>{currentTrip.dropOffName}</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.statusRow}>
-                      <Text style={styles.statusLabel}>Status</Text>
-                      <View style={styles.assignedBadge}>
-                        <Text style={styles.assignedBadgeText}>{currentTrip.status}</Text>
-                      </View>
-                    </View>
-
-                    <View style={{ height: 12 }} />
-
-                    <TouchableOpacity style={styles.viewDetailsBtn} onPress={onTripMapPress} activeOpacity={0.8}>
-                      <Text style={styles.viewDetailsText}>View Details</Text>
+                  {assignmentError && (
+                    <TouchableOpacity
+                      style={styles.viewDetailsBtn}
+                      onPress={refreshData}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.viewDetailsText}>
+                        Try Again
+                      </Text>
                     </TouchableOpacity>
-                  </View>
-                </GlassCard>
-              </AnimatedPressable>
-            </Animated.View>
+                  )}
+                </View>
+              </GlassCard>
+            )}
+
 
             {/* Upcoming */}
             {/* <Text style={styles.sectionLabel}>UPCOMING</Text>
@@ -414,6 +511,27 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingVertical: 14,
     alignItems: 'center',
+  },
+  emptyAssignment: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 150,
+  },
+
+  emptyAssignmentTitle: {
+    ...Typography.titleMedium,
+    color: Colors.White,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  emptyAssignmentText: {
+    ...Typography.bodySmall,
+    color: Colors.TextSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 12,
   },
   viewDetailsText: {
     ...Typography.titleMedium,

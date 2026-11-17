@@ -46,6 +46,15 @@ export interface TripData {
   approvedAt?: string;
   // The "complete within" SLA the Maker picked ("Within 3 hours").
   completeWithin?: string;
+
+  cashRequestId: number;
+  tripId: number;
+
+  pickupLatitude: number | null;
+  pickupLongitude: number | null;
+
+  dropOffLatitude: number | null;
+  dropOffLongitude: number | null;
 }
 
 export interface NotificationData {

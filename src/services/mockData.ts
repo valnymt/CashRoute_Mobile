@@ -31,6 +31,14 @@ export const CURRENT_TRIP: TripData = {
   approvedByRole: 'Checker',
   approvedAt: '14 Oct 2026 · 09:12',
   completeWithin: 'Within 3 hours',
+  cashRequestId: 26,
+  tripId: 26,
+
+  pickupLatitude: 16.7752,
+  pickupLongitude: 96.1652,
+
+  dropOffLatitude: 16.8475,
+  dropOffLongitude: 96.1236,
 };
 
 export const UPCOMING_TRIP: TripData = {
@@ -51,6 +59,14 @@ export const UPCOMING_TRIP: TripData = {
   status: 'Assigned',
   date: '15 Oct 2026',
   team: 'Team A',
+  cashRequestId: 27,
+  tripId: 27,
+
+  pickupLatitude: null,
+  pickupLongitude: null,
+
+  dropOffLatitude: null,
+  dropOffLongitude: null,
 };
 
 export const TEAM_MEMBERS: TeamMember[] = [

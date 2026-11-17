@@ -1,27 +1,41 @@
-// Shared app state — mirrors the portal's src/store/data.tsx role.
-// Reads fixtures from services/mockData for now; swap to httpApi later
-// without touching screens.
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
 import {
-  CURRENT_TRIP,
-  UPCOMING_TRIP,
   NOTIFICATIONS,
   TRIP_HISTORY,
   TEAM_MEMBERS,
 } from '../services/mockData';
-import type { TripData, NotificationData, HistoryTrip, TripStage, User, TeamMember } from '../types';
+
+import { getMyAssignments } from '../services/assignment';
+
+import type {
+  TripData,
+  NotificationData,
+  HistoryTrip,
+  TripStage,
+  User,
+  TeamMember,
+} from '../types';
+
+import type { BackendAssignment } from '../services/assignment';
 
 interface AppState {
   user: User;
-  currentTrip: TripData;
-  upcomingTrip: TripData;
+  currentTrip: TripData | null;
+  upcomingTrip: TripData | null;
   tripStage: TripStage;
   notifications: NotificationData[];
   unreadCount: number;
   tripHistory: HistoryTrip[];
   teamMembers: TeamMember[];
   isRefreshing: boolean;
+  assignmentError: string | null;
 
   advanceStage: () => void;
   markNotificationRead: (id: string) => void;
@@ -44,10 +58,60 @@ const STAGE_ORDER: TripStage[] = [
   'completed',
 ];
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+function mapAssignmentToTrip(item: BackendAssignment): TripData {
+  const status =
+    item.status.toLowerCase() === 'in_transit'
+      ? 'In Transit'
+      : item.status.toLowerCase() === 'completed'
+        ? 'Completed'
+        : 'Assigned';
+
+  return {
+    id: item.reference,
+
+    // Numeric IDs are needed by the OTP backend.
+    cashRequestId: item.cash_request_id,
+    tripId: item.trip_id,
+
+    type: item.type,
+    amount: Number(item.amount).toLocaleString('en-US'),
+    currency: item.currency,
+
+    pickupName: item.pickup.name,
+    pickupAddr: item.pickup.address,
+    pickupLatitude: item.pickup.latitude,
+    pickupLongitude: item.pickup.longitude,
+
+    dropOffName: item.dropoff.name,
+    dropOffAddr: item.dropoff.address,
+    dropOffLatitude: item.dropoff.latitude,
+    dropOffLongitude: item.dropoff.longitude,
+
+    contactName: item.pickup.contact_name || '',
+    contactInfo: item.pickup.contact_phone || '',
+    pickupContactPhone: item.pickup.contact_phone || '',
+
+    dropOffContact: item.dropoff.contact_name || '',
+    dropOffContactInfo: item.dropoff.contact_phone || '',
+    dropOffContactPhone: item.dropoff.contact_phone || '',
+
+    remarks: item.remarks || '',
+    timeSlot: '',
+    status,
+    date: item.date,
+    team: `Team ${item.team_id}`,
+  };
+}
+
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [tripStage, setTripStage] = useState<TripStage>('assigned');
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [currentTrip, setCurrentTrip] = useState<TripData | null>(null);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
 
   const user: User = {
     name: 'Ngeyeemon',
@@ -61,7 +125,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const advanceStage = useCallback(() => {
     setTripStage(prev => {
       const idx = STAGE_ORDER.indexOf(prev);
-      return idx < STAGE_ORDER.length - 1 ? STAGE_ORDER[idx + 1] : prev;
+      return idx < STAGE_ORDER.length - 1
+        ? STAGE_ORDER[idx + 1]
+        : prev;
     });
   }, []);
 
@@ -77,9 +143,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
-    await new Promise<void>(resolve => setTimeout(resolve, 1200));
-    setIsRefreshing(false);
+    setAssignmentError(null);
+
+    try {
+      const assignments = await getMyAssignments();
+
+      const activeAssignments = assignments.filter(item =>
+        ['assigned', 'reassigned', 'in_transit'].includes(
+          item.status.toLowerCase(),
+        ),
+      );
+
+      if (activeAssignments.length > 0) {
+        setCurrentTrip(mapAssignmentToTrip(activeAssignments[0]));
+      } else {
+        setCurrentTrip(null);
+      }
+    } catch (error) {
+      console.error('Failed to load assignments:', error);
+
+      setAssignmentError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load assignments. Please try again.',
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const resetTrip = useCallback(() => {
     setTripStage('assigned');
@@ -89,14 +184,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         user,
-        currentTrip: CURRENT_TRIP,
-        upcomingTrip: UPCOMING_TRIP,
+        currentTrip,
+        upcomingTrip: null,
         tripStage,
         notifications,
         unreadCount,
         teamMembers: TEAM_MEMBERS,
         tripHistory: TRIP_HISTORY,
         isRefreshing,
+        assignmentError,
         advanceStage,
         markNotificationRead,
         markAllNotificationsRead,
@@ -110,6 +206,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 export const useApp = (): AppState => {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be inside AppProvider');
+
+  if (!ctx) {
+    throw new Error('useApp must be inside AppProvider');
+  }
+
   return ctx;
 };

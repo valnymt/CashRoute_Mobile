@@ -72,6 +72,13 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
   const deadlinePulse = usePulse();
 
   const handleAccept = async () => {
+    if (!currentTrip) {
+      Alert.alert(
+        'No assignment',
+        'There is no assignment available to accept.',
+      );
+      return;
+    }
     try {
       setIsLoading(true);
 
@@ -116,250 +123,264 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
         <TopBar title="Request details" onBackClick={onBackClick} />
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* ─── 1. Header (request ID, amount, type, status) ─────────────── */}
-          <Animated.View style={card1}>
-            <GlassCard>
-              <View style={styles.cardContent}>
-                <View style={styles.headerTopRow}>
-                  <Text style={styles.requestId}>{currentTrip.id}</Text>
-                  <View
-                    style={[
-                      styles.typeBadge,
-                      currentTrip.type === 'Deposit'
-                        ? styles.typeBadgeDeposit
-                        : styles.typeBadgeWithdrawal,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.typeBadgeText,
-                        currentTrip.type === 'Deposit'
-                          ? styles.typeBadgeTextDeposit
-                          : styles.typeBadgeTextWithdrawal,
-                      ]}>
-                      {currentTrip.type}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.amountLabel}>Amount</Text>
-                <Text style={styles.amount}>
-                  {currentTrip.currency} {currentTrip.amount}
-                </Text>
-                <View style={styles.headerStatusRow}>
-                  <View style={styles.statusBadge}>
-                    <View style={styles.statusDot} />
-                    <Text style={styles.statusBadgeText}>{currentTrip.status}</Text>
-                  </View>
-                </View>
-              </View>
-            </GlassCard>
-          </Animated.View>
-
-          <View style={styles.gap12} />
-
-          {/* ─── 2. Deadline (prominent — the whole point of the screen) ──── */}
-          {currentTrip.completeWithin ? (
+          {currentTrip ? (
             <>
-              <Animated.View style={card2}>
-                <View style={styles.deadlineCard}>
-                  <View style={styles.deadlineLeft}>
-                    <Animated.View
-                      style={[styles.deadlineIconCircle, { opacity: deadlinePulse }]}>
-                      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M12 2a10 10 0 100 20 10 10 0 000-20z"
-                          stroke={Colors.AccentRed}
-                          strokeWidth={2.2}
-                          fill="none"
-                        />
-                        <Path
-                          d="M12 7v5l3 3"
-                          stroke={Colors.AccentRed}
-                          strokeWidth={2.2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          fill="none"
-                        />
-                      </Svg>
-                    </Animated.View>
-                  </View>
-                  <View style={styles.deadlineTextBlock}>
-                    <Text style={styles.deadlineLabel}>COMPLETE WITHIN</Text>
-                    <Text style={styles.deadlineValue}>{currentTrip.completeWithin}</Text>
-                    <Text style={styles.deadlineHint}>
-                      Pickup window: {currentTrip.timeSlot}
-                    </Text>
-                  </View>
-                </View>
-              </Animated.View>
-              <View style={styles.gap12} />
-            </>
-          ) : null}
-
-          {/* ─── 3. Route (pickup → drop-off) ─────────────────────────────── */}
-          <Animated.View style={card3}>
-            <GlassCard>
-              <View style={styles.cardContent}>
-                <Text style={styles.sectionLabel}>ROUTE</Text>
-                <View style={styles.gap12} />
-
-                <View style={styles.routeItem}>
-                  <View style={styles.markerContainer}>
-                    <View
-                      style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
-                      <Text style={styles.markerLetter}>A</Text>
-                    </View>
-                  </View>
-                  <View style={styles.routeTextContainer}>
-                    <Text style={styles.routeType}>PICKUP</Text>
-                    <Text style={styles.routeTitle}>{currentTrip.pickupName}</Text>
-                    <Text style={styles.routeAddr}>{currentTrip.pickupAddr}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.routeConnector}>
-                  <View style={styles.routeLine} />
-                </View>
-
-                <View style={styles.routeItem}>
-                  <View style={styles.markerContainer}>
-                    <View
-                      style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
-                      <Text style={styles.markerLetter}>B</Text>
-                    </View>
-                  </View>
-                  <View style={styles.routeTextContainer}>
-                    <Text style={styles.routeType}>DROP-OFF</Text>
-                    <Text style={styles.routeTitle}>{currentTrip.dropOffName}</Text>
-                    <Text style={styles.routeAddr}>{currentTrip.dropOffAddr}</Text>
-                  </View>
-                </View>
-              </View>
-            </GlassCard>
-          </Animated.View>
-
-          <View style={styles.gap12} />
-
-          {/* ─── 4. Branch contacts (pickup + drop-off, tap-to-call) ──────── */}
-          <Animated.View style={card4}>
-            <GlassCard>
-              <View style={styles.cardContent}>
-                <Text style={styles.sectionLabel}>BRANCH CONTACTS</Text>
-                <View style={styles.gap12} />
-
-                <ContactRow
-                  stageLabel="PICKUP CONTACT"
-                  name={currentTrip.contactName}
-                  info={currentTrip.contactInfo}
-                  phone={currentTrip.pickupContactPhone}
-                  accentColor={Colors.PrimaryGreen}
-                />
-
-                <View style={styles.contactDivider} />
-
-                <ContactRow
-                  stageLabel="DROP-OFF CONTACT"
-                  name={currentTrip.dropOffContact}
-                  info={currentTrip.dropOffContactInfo}
-                  phone={currentTrip.dropOffContactPhone}
-                  accentColor={Colors.PurpleAccent}
-                />
-              </View>
-            </GlassCard>
-          </Animated.View>
-
-          <View style={styles.gap12} />
-
-          {/* ─── 5. Remarks from the Maker (if any) ───────────────────────── */}
-          {currentTrip.remarks ? (
-            <>
-              <Animated.View style={card5}>
+              {/* ─── 1. Header (request ID, amount, type, status) ─────────────── */}
+              <Animated.View style={card1}>
                 <GlassCard>
                   <View style={styles.cardContent}>
-                    <Text style={styles.sectionLabel}>REMARKS FROM MAKER</Text>
-                    <View style={styles.gap12} />
-                    <Text style={styles.remarksText}>{currentTrip.remarks}</Text>
+                    <View style={styles.headerTopRow}>
+                      <Text style={styles.requestId}>{currentTrip.id}</Text>
+                      <View
+                        style={[
+                          styles.typeBadge,
+                          currentTrip.type === 'Deposit'
+                            ? styles.typeBadgeDeposit
+                            : styles.typeBadgeWithdrawal,
+                        ]}>
+                        <Text
+                          style={[
+                            styles.typeBadgeText,
+                            currentTrip.type === 'Deposit'
+                              ? styles.typeBadgeTextDeposit
+                              : styles.typeBadgeTextWithdrawal,
+                          ]}>
+                          {currentTrip.type}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.amountLabel}>Amount</Text>
+                    <Text style={styles.amount}>
+                      {currentTrip.currency} {currentTrip.amount}
+                    </Text>
+                    <View style={styles.headerStatusRow}>
+                      <View style={styles.statusBadge}>
+                        <View style={styles.statusDot} />
+                        <Text style={styles.statusBadgeText}>{currentTrip.status}</Text>
+                      </View>
+                    </View>
                   </View>
                 </GlassCard>
               </Animated.View>
-              <View style={styles.gap12} />
-            </>
-          ) : null}
 
-          {/* ─── 6. Your team (highlight current user with "YOU" tag) ─────── */}
-          <Animated.View style={card6}>
-            <GlassCard>
-              <View style={styles.cardContent}>
-                <View style={styles.teamHeaderRow}>
-                  <Text style={styles.sectionLabel}>YOUR TEAM</Text>
-                  <View style={styles.teamNameBadge}>
-                    <Text style={styles.teamNameBadgeText}>{currentTrip.team}</Text>
-                  </View>
-                </View>
-                <Text style={styles.teamHint}>
-                  You're delivering this with {teamMembers.length - 1} other team member
-                  {teamMembers.length - 1 === 1 ? '' : 's'}.
-                </Text>
-                <View style={styles.gap12} />
-                {teamMembers.map((member, index) => {
-                  const isCurrentUser = member.name === user.name;
-                  return (
-                    <View
-                      key={member.name}
-                      style={[
-                        styles.memberRow,
-                        index < teamMembers.length - 1 && styles.memberBorder,
-                      ]}>
-                      <View style={styles.memberLeft}>
+              <View style={styles.gap12} />
+
+              {/* ─── 2. Deadline (prominent — the whole point of the screen) ──── */}
+              {currentTrip.completeWithin ? (
+                <>
+                  <Animated.View style={card2}>
+                    <View style={styles.deadlineCard}>
+                      <View style={styles.deadlineLeft}>
+                        <Animated.View
+                          style={[styles.deadlineIconCircle, { opacity: deadlinePulse }]}>
+                          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                            <Path
+                              d="M12 2a10 10 0 100 20 10 10 0 000-20z"
+                              stroke={Colors.AccentRed}
+                              strokeWidth={2.2}
+                              fill="none"
+                            />
+                            <Path
+                              d="M12 7v5l3 3"
+                              stroke={Colors.AccentRed}
+                              strokeWidth={2.2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              fill="none"
+                            />
+                          </Svg>
+                        </Animated.View>
+                      </View>
+                      <View style={styles.deadlineTextBlock}>
+                        <Text style={styles.deadlineLabel}>COMPLETE WITHIN</Text>
+                        <Text style={styles.deadlineValue}>{currentTrip.completeWithin}</Text>
+                        <Text style={styles.deadlineHint}>
+                          Pickup window: {currentTrip.timeSlot}
+                        </Text>
+                      </View>
+                    </View>
+                  </Animated.View>
+                  <View style={styles.gap12} />
+                </>
+              ) : null}
+
+              {/* ─── 3. Route (pickup → drop-off) ─────────────────────────────── */}
+              <Animated.View style={card3}>
+                <GlassCard>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.sectionLabel}>ROUTE</Text>
+                    <View style={styles.gap12} />
+
+                    <View style={styles.routeItem}>
+                      <View style={styles.markerContainer}>
                         <View
-                          style={[
-                            styles.memberAvatar,
-                            {
-                              backgroundColor:
-                                member.role === 'Driver'
-                                  ? Colors.PrimaryGreen
-                                  : Colors.PurpleAccent,
-                            },
-                          ]}>
-                          <Text style={styles.memberInitials}>{member.initials}</Text>
-                        </View>
-                        <View style={styles.memberInfo}>
-                          <View style={styles.memberNameRow}>
-                            <Text style={styles.memberName}>{member.name}</Text>
-                            {isCurrentUser && (
-                              <View style={styles.youBadge}>
-                                <Text style={styles.youBadgeText}>YOU</Text>
-                              </View>
-                            )}
-                          </View>
-                          <View style={styles.memberRoleBadge}>
-                            <Text style={styles.memberRoleText}>{member.role}</Text>
-                          </View>
+                          style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
+                          <Text style={styles.markerLetter}>A</Text>
                         </View>
                       </View>
-                      {!isCurrentUser && member.phone ? (
-                        <TouchableOpacity
-                          style={styles.callBtn}
-                          onPress={() => Linking.openURL(`tel:${member.phone}`)}
-                          activeOpacity={0.7}>
-                          <PhoneIcon />
-                        </TouchableOpacity>
-                      ) : null}
+                      <View style={styles.routeTextContainer}>
+                        <Text style={styles.routeType}>PICKUP</Text>
+                        <Text style={styles.routeTitle}>{currentTrip.pickupName}</Text>
+                        <Text style={styles.routeAddr}>{currentTrip.pickupAddr}</Text>
+                      </View>
                     </View>
-                  );
-                })}
-              </View>
-            </GlassCard>
-          </Animated.View>
 
-          <View style={styles.gap24} />
+                    <View style={styles.routeConnector}>
+                      <View style={styles.routeLine} />
+                    </View>
+
+                    <View style={styles.routeItem}>
+                      <View style={styles.markerContainer}>
+                        <View
+                          style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
+                          <Text style={styles.markerLetter}>B</Text>
+                        </View>
+                      </View>
+                      <View style={styles.routeTextContainer}>
+                        <Text style={styles.routeType}>DROP-OFF</Text>
+                        <Text style={styles.routeTitle}>{currentTrip.dropOffName}</Text>
+                        <Text style={styles.routeAddr}>{currentTrip.dropOffAddr}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </GlassCard>
+              </Animated.View>
+
+              <View style={styles.gap12} />
+
+              {/* ─── 4. Branch contacts (pickup + drop-off, tap-to-call) ──────── */}
+              <Animated.View style={card4}>
+                <GlassCard>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.sectionLabel}>BRANCH CONTACTS</Text>
+                    <View style={styles.gap12} />
+
+                    <ContactRow
+                      stageLabel="PICKUP CONTACT"
+                      name={currentTrip.contactName}
+                      info={currentTrip.contactInfo}
+                      phone={currentTrip.pickupContactPhone}
+                      accentColor={Colors.PrimaryGreen}
+                    />
+
+                    <View style={styles.contactDivider} />
+
+                    <ContactRow
+                      stageLabel="DROP-OFF CONTACT"
+                      name={currentTrip.dropOffContact}
+                      info={currentTrip.dropOffContactInfo}
+                      phone={currentTrip.dropOffContactPhone}
+                      accentColor={Colors.PurpleAccent}
+                    />
+                  </View>
+                </GlassCard>
+              </Animated.View>
+
+              <View style={styles.gap12} />
+
+              {/* ─── 5. Remarks from the Maker (if any) ───────────────────────── */}
+              {currentTrip.remarks ? (
+                <>
+                  <Animated.View style={card5}>
+                    <GlassCard>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.sectionLabel}>REMARKS FROM MAKER</Text>
+                        <View style={styles.gap12} />
+                        <Text style={styles.remarksText}>{currentTrip.remarks}</Text>
+                      </View>
+                    </GlassCard>
+                  </Animated.View>
+                  <View style={styles.gap12} />
+                </>
+              ) : null}
+
+              {/* ─── 6. Your team (highlight current user with "YOU" tag) ─────── */}
+              <Animated.View style={card6}>
+                <GlassCard>
+                  <View style={styles.cardContent}>
+                    <View style={styles.teamHeaderRow}>
+                      <Text style={styles.sectionLabel}>YOUR TEAM</Text>
+                      <View style={styles.teamNameBadge}>
+                        <Text style={styles.teamNameBadgeText}>{currentTrip.team}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.teamHint}>
+                      You're delivering this with {teamMembers.length - 1} other team member
+                      {teamMembers.length - 1 === 1 ? '' : 's'}.
+                    </Text>
+                    <View style={styles.gap12} />
+                    {teamMembers.map((member, index) => {
+                      const isCurrentUser = member.name === user.name;
+                      return (
+                        <View
+                          key={member.name}
+                          style={[
+                            styles.memberRow,
+                            index < teamMembers.length - 1 && styles.memberBorder,
+                          ]}>
+                          <View style={styles.memberLeft}>
+                            <View
+                              style={[
+                                styles.memberAvatar,
+                                {
+                                  backgroundColor:
+                                    member.role === 'Driver'
+                                      ? Colors.PrimaryGreen
+                                      : Colors.PurpleAccent,
+                                },
+                              ]}>
+                              <Text style={styles.memberInitials}>{member.initials}</Text>
+                            </View>
+                            <View style={styles.memberInfo}>
+                              <View style={styles.memberNameRow}>
+                                <Text style={styles.memberName}>{member.name}</Text>
+                                {isCurrentUser && (
+                                  <View style={styles.youBadge}>
+                                    <Text style={styles.youBadgeText}>YOU</Text>
+                                  </View>
+                                )}
+                              </View>
+                              <View style={styles.memberRoleBadge}>
+                                <Text style={styles.memberRoleText}>{member.role}</Text>
+                              </View>
+                            </View>
+                          </View>
+                          {!isCurrentUser && member.phone ? (
+                            <TouchableOpacity
+                              style={styles.callBtn}
+                              onPress={() => Linking.openURL(`tel:${member.phone}`)}
+                              activeOpacity={0.7}>
+                              <PhoneIcon />
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </GlassCard>
+              </Animated.View>
+
+              <View style={styles.gap24} />
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>No assignment available</Text>
+              <Text style={styles.emptyMessage}>
+                Your team currently has no active assignment.
+                Please pull down on the Home Screen to refresh.
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
-        <PrimaryButton
-          text={isLoading ? 'Accepting...' : 'Accept Assignment'}
-          onPress={handleAccept}
-          loading={isLoading}
-          style={styles.acceptBtn}
-        />
+        {currentTrip && (
+          <PrimaryButton
+            text={isLoading ? 'Accepting...' : 'Accept Assignment'}
+            onPress={handleAccept}
+            loading={isLoading}
+            style={styles.acceptBtn}
+          />
+        )}
       </View>
     </AuraBackground>
   );
@@ -374,6 +395,27 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+
+  emptyTitle: {
+    ...Typography.titleMedium,
+    color: Colors.White,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  emptyMessage: {
+    ...Typography.bodySmall,
+    color: Colors.TextSecondary,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 21,
   },
   cardContent: {
     padding: 20,

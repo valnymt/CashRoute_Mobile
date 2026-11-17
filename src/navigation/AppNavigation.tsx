@@ -14,7 +14,6 @@ import {
   TripHistoryScreen,
   TripDetailsScreen,
 } from '../screens';
-
 type Coordinates = { latitude: number; longitude: number } | null;
 
 export type RootStackParamList = {
