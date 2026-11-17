@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "890890237143",
+    "project_id": "cashroutemobile",
+    "storage_bucket": "cashroutemobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:890890237143:android:a82bd53445240ea4ab2c92",
+        "android_client_info": {
+          "package_name": "com.cashroute_rn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXNcIbcO7i6PFWjl0oq9paEDdUKD_pHUk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

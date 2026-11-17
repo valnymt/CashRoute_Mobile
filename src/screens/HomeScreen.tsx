@@ -14,6 +14,8 @@ import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 import { usePulse } from '../hooks/useAnimatedMount';
 import type { BottomNavItem } from '../components';
+//for test
+import { forceFcmTokenRefresh } from '../services/notifications';
 
 interface HomeScreenProps {
   onRequestPress: () => void;
@@ -144,7 +146,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                 progressBackgroundColor={Colors.DarkBgTop}
               />
             }>
-            {/* Current Trip */}
 
             {/* Current Trip */}
             <Text style={styles.sectionLabel}>CURRENT TRIP</Text>
@@ -277,27 +278,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
               </GlassCard>
             )}
 
+            {/* for test */}
+            <TouchableOpacity
+              style={styles.viewDetailsBtn}
+              onPress={forceFcmTokenRefresh}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.viewDetailsText}>
+                TEST FCM TOKEN REFRESH
+              </Text>
+            </TouchableOpacity>
 
-            {/* Upcoming */}
-            {/* <Text style={styles.sectionLabel}>UPCOMING</Text>
-
-            <Animated.View style={{ opacity: upcomingAnim, transform: [{ translateY: upcomingSlide }] }}>
-              <GlassCard style={{ marginBottom: 12 }}>
-                <View style={styles.upcomingCard}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.upcomingId}>{upcomingTrip.id} · {upcomingTrip.type}</Text>
-                    <View style={styles.assignedBadge}>
-                      <Text style={styles.assignedBadgeText}>{upcomingTrip.status}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.upcomingMeta}>
-                    {upcomingTrip.currency} {upcomingTrip.amount} · {upcomingTrip.pickupName} → {upcomingTrip.dropOffName} · {upcomingTrip.timeSlot}
-                  </Text>
-                </View>
-              </GlassCard>
-            </Animated.View>
-
-            <View style={{ height: 16 }} /> */}
           </ScrollView>
         </View>
 

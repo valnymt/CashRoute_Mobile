@@ -57,7 +57,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
   onBackClick,
   onStartTrip,
 }) => {
-  const { currentTrip, teamMembers, user } = useApp();
+  const { currentTrip, teamMembers, user, refreshData } = useApp();
   const [isLoading, setIsLoading] = useState(false);
 
   // One staggered mount animation per card so the detail stack feels alive.

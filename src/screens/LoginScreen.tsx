@@ -17,6 +17,7 @@ import { useAnimatedMount } from '../hooks/useAnimatedMount';
 import { styles } from './LoginScreen.styles';
 import { Image } from 'react-native';
 import CashRouteLogo from '../assets/images/logo.png';
+import { registerFcmToken } from '../services/notifications';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -52,6 +53,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       const response = await login(username.trim(), password);
 
       await saveToken(response.token);
+      // Register this device for Firebase push notifications.
+      await registerFcmToken();
 
       onLoginSuccess();
     } catch (error) {

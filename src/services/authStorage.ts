@@ -1,4 +1,3 @@
-
 import * as Keychain from 'react-native-keychain';
 
 const TOKEN_SERVICE = 'com.cashroute.mobile.auth';
