@@ -38,6 +38,7 @@ interface TripLocation {
 
 interface TripDetails {
   id: string;
+  cashRequestId: number;
   date: string;
   branchId: string;
   type: 'Deposit' | 'Withdrawal';
@@ -59,7 +60,10 @@ interface TripMapScreenProps {
   isPickup?: boolean;
   onBackClick: () => void;
   onOpenDirections: () => void;
-  onArrived: () => void;
+  onArrived: (
+    cashRequestId: number,
+    currentLocation: { latitude: number; longitude: number } | null,
+  ) => void;
 }
 
 export const TripMapScreen: React.FC<TripMapScreenProps> = ({
@@ -380,7 +384,23 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             <View style={{ height: 20 }} />
             <SecondaryButton text="Open Directions" onPress={onOpenDirections} />
             <View style={{ height: 12 }} />
-            <PrimaryButton text={arrivedText} onPress={onArrived} />
+            <PrimaryButton
+              text={arrivedText}
+              onPress={() => {
+                if (
+                  !tripDetails?.cashRequestId ||
+                  !Number.isInteger(tripDetails.cashRequestId)
+                ) {
+                  Alert.alert(
+                    'Trip Not Ready',
+                    'The trip response does not contain a valid cash request database ID. Please refresh the trip.',
+                  );
+                  return;
+                }
+
+                onArrived(tripDetails.cashRequestId, currentLocation);
+              }}
+            />
 
             <Text style={styles.shareNote}>
               Sharing stops automatically when the request is Completed or Cancelled.

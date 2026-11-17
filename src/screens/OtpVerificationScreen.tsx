@@ -1,57 +1,190 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, Animated } from 'react-native';
-import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Animated,
+  Alert,
+} from 'react-native';
+import {
+  AuraBackground,
+  GlassCard,
+  TopBar,
+  PrimaryButton,
+} from '../components';
 import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
+import {
+  requestHandoverOtp,
+  verifyHandoverOtp,
+} from '../services/otp';
 
-export type OtpStep = 'request' | 'enterCode';
 export type OtpType = 'pickup' | 'dropOff';
 
 interface OtpVerificationScreenProps {
-  step: OtpStep;
   type: OtpType;
+  cashRequestId: number;
+  currentLocation?: {
+    latitude: number;
+    longitude: number;
+  } | null;
   onBackClick: () => void;
-  onRequestOtp: () => void;
-  onVerify: () => void;
+  onVerified: () => void | Promise<void>;
 }
 
 export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
-  step,
   type,
+  cashRequestId,
+  currentLocation,
   onBackClick,
-  onRequestOtp,
-  onVerify,
+  onVerified,
 }) => {
   const { currentTrip } = useApp();
-  const title = type === 'pickup' ? 'Pickup verification' : 'Drop-off verification';
-  const currentStep = type === 'pickup' ? 1 : 2;
+  const [step, setStep] = useState<'request' | 'enterCode'>('request');
   const [isLoading, setIsLoading] = useState(false);
-
+  const [otpCode, setOtpCode] = useState('');
+  const [otpId, setOtpId] = useState<number | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [expirySeconds, setExpirySeconds] = useState(0);
+  const inputRef = useRef<TextInput>(null);
   const contentAnim = useAnimatedMount(100, 400);
 
-  const handleRequestOtp = () => {
-    setIsLoading(true);
-    setTimeout(() => {
+  const title = type === 'pickup' ? 'Pickup verification' : 'Drop-off verification';
+  const currentStep = type === 'pickup' ? 1 : 2;
+  const otpStage = type === 'pickup' ? 'pickup' : 'dropoff';
+
+  useEffect(() => {
+    if (!expiresAt) {
+      setExpirySeconds(0);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000),
+      );
+      setExpirySeconds(remaining);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+
+  const formatTime = useCallback((secs: number) => {
+    const minutes = Math.floor(secs / 60);
+    const seconds = secs % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }, []);
+
+  const handleRequestOtp = async () => {
+    if (isLoading) return;
+
+    try {
+      setIsLoading(true);
+      const response = await requestHandoverOtp(cashRequestId, otpStage);
+      setOtpId(response.otp_id);
+      setExpiresAt(response.expires_at);
+      setOtpCode('');
+      setStep('enterCode');
+      Alert.alert(
+        'OTP Sent',
+        'A verification code has been sent to the registered email address.',
+      );
+    } catch (error) {
+      Alert.alert(
+        'OTP Error',
+        error instanceof Error ? error.message : 'Unable to send OTP.',
+      );
+    } finally {
       setIsLoading(false);
-      onRequestOtp();
-    }, 800);
+    }
   };
 
-  const handleVerify = () => {
-    setIsLoading(true);
-    setTimeout(() => {
+  const handleVerify = async () => {
+    if (isLoading) return;
+
+    if (!otpId) {
+      Alert.alert('OTP Error', 'Please request an OTP first.');
+      return;
+    }
+
+    if (expirySeconds <= 0) {
+      Alert.alert('OTP Expired', 'Please request a new verification code.');
+      return;
+    }
+
+    if (otpCode.length !== 6) {
+      Alert.alert('Invalid OTP', 'Please enter the complete 6-digit code.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await verifyHandoverOtp(
+        otpId,
+        otpCode,
+        currentLocation?.latitude,
+        currentLocation?.longitude,
+      );
+
+      Alert.alert('Verification Successful', response.message, [
+        {
+          text: 'Continue',
+          onPress: () => {
+            void onVerified();
+          },
+        },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        'Verification Failed',
+        error instanceof Error ? error.message : 'Unable to verify OTP.',
+      );
+    } finally {
       setIsLoading(false);
-      onVerify();
-    }, 1000);
+    }
   };
+
+  const handleBack = () => {
+    if (step === 'enterCode') {
+      // Going back to the request stage clears this OTP locally.
+      // The next request expires the previous pending OTP on the backend.
+      setStep('request');
+      setOtpId(null);
+      setExpiresAt(null);
+      setOtpCode('');
+      return;
+    }
+    onBackClick();
+  };
+
+  const contactName =
+    type === 'pickup'
+      ? currentTrip?.contactName
+      : currentTrip?.dropOffContact;
+  const contactInfo =
+    type === 'pickup'
+      ? currentTrip?.contactInfo
+      : currentTrip?.dropOffContactInfo;
+  const cleanContactName = contactName?.split(' · ')[0] || 'registered contact';
+
+  const handleOtpChange = (text: string) => {
+    if (/^\d{0,6}$/.test(text)) {
+      setOtpCode(text);
+    }
+  };
+
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   return (
     <AuraBackground>
       <View style={styles.container}>
-        <TopBar title={title} onBackClick={onBackClick} />
+        <TopBar title={title} onBackClick={handleBack} />
 
-        {/* Step indicator */}
         <View style={styles.stepRow}>
           <View style={styles.stepItem}>
             <View style={[styles.stepNumber, styles.activeStep]}>
@@ -70,9 +203,77 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
 
         <Animated.View style={[styles.content, contentAnim]}>
           {step === 'request' ? (
-            <OtpRequestContent type={type} trip={currentTrip} />
+            <View style={styles.requestContent}>
+              <View style={styles.otpCircle}>
+                <Text style={styles.otpCircleText}>OTP</Text>
+              </View>
+              <Text style={styles.verifyTitle}>
+                Verify handover at {type === 'pickup' ? 'pickup' : 'drop-off'}
+              </Text>
+              <Text style={styles.verifyDesc}>
+                A one-time code will be sent to the registered contact at this location.
+              </Text>
+              <View style={{ height: 24 }} />
+              <GlassCard>
+                <View style={styles.contactCard}>
+                  <Text style={styles.sendingToLabel}>SENDING TO</Text>
+                  <Text style={styles.contactName}>{contactName || 'Registered contact'}</Text>
+                  <Text style={styles.contactInfo}>{contactInfo || 'Registered email address'}</Text>
+                </View>
+              </GlassCard>
+            </View>
           ) : (
-            <OtpEnterCodeContent type={type} trip={currentTrip} />
+            <View style={styles.codeContent}>
+              <GlassCard>
+                <Text style={styles.sentText}>
+                  OTP sent to {cleanContactName} by email.
+                </Text>
+              </GlassCard>
+              <View style={{ height: 24 }} />
+              <Text style={styles.enterCodeTitle}>Enter 6-digit code</Text>
+              <View style={{ height: 16 }} />
+              <Animated.View style={[styles.otpRow, { transform: [{ translateX: shakeAnim }] }]}>
+                {[0, 1, 2, 3, 4, 5].map(index => {
+                  const char = otpCode[index] || '';
+                  const isActive = index === otpCode.length;
+                  const isFilled = char !== '';
+                  return (
+                    <View
+                      key={index}
+                      onTouchEnd={() => inputRef.current?.focus()}
+                      style={[
+                        styles.otpBox,
+                        isActive && styles.otpBoxActive,
+                        isFilled && styles.otpBoxFilled,
+                      ]}
+                    >
+                      <Text style={styles.otpChar}>{char}</Text>
+                    </View>
+                  );
+                })}
+              </Animated.View>
+              <TextInput
+                ref={inputRef}
+                style={styles.hiddenInput}
+                value={otpCode}
+                onChangeText={handleOtpChange}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+              />
+              <View style={{ height: 16 }} />
+              <View style={styles.timerRow}>
+                <View style={[styles.expiryBadge, expirySeconds < 60 && styles.expiryBadgeUrgent]}>
+                  <Text style={[styles.expiryText, expirySeconds < 60 && styles.expiryTextUrgent]}>
+                    {expirySeconds > 0 ? `Expires in ${formatTime(expirySeconds)}` : 'OTP expired'}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ height: 16 }} />
+              <Text style={styles.attemptsText}>
+                Maximum 3 verification attempts. Each attempt is recorded with time and GPS.
+              </Text>
+            </View>
           )}
         </Animated.View>
 
@@ -85,7 +286,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
               style={{ marginBottom: 8 }}
             />
             <Text style={styles.footerText}>
-              Max 5 attempts. Every attempt is recorded.
+              OTP expires after 5 minutes. Maximum 3 verification attempts.
             </Text>
             <View style={{ height: 16 }} />
           </>
@@ -104,154 +305,6 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     </AuraBackground>
   );
 };
-
-const OtpRequestContent: React.FC<{ type: OtpType; trip: any }> = ({ type, trip }) => {
-  const locationText = type === 'pickup' ? 'pickup' : 'drop-off';
-  const contactName = type === 'pickup' ? trip.contactName : trip.dropOffContact;
-  const contactInfo = type === 'pickup' ? trip.contactInfo : trip.dropOffContactInfo;
-
-  return (
-    <View style={styles.requestContent}>
-      <View style={styles.otpCircle}>
-        <Text style={styles.otpCircleText}>OTP</Text>
-      </View>
-
-      <Text style={styles.verifyTitle}>Verify handover at {locationText}</Text>
-      <Text style={styles.verifyDesc}>
-        A one-time code will be sent to the registered contact at this location.
-      </Text>
-
-      <View style={{ height: 24 }} />
-
-      <GlassCard>
-        <View style={styles.contactCard}>
-          <Text style={styles.sendingToLabel}>SENDING TO</Text>
-          <Text style={styles.contactName}>{contactName}</Text>
-          <Text style={styles.contactInfo}>{contactInfo}</Text>
-        </View>
-      </GlassCard>
-    </View>
-  );
-};
-
-const OtpEnterCodeContent: React.FC<{ type: OtpType; trip: any }> = ({ type, trip }) => {
-  const [otpCode, setOtpCode] = useState('');
-  const [expirySeconds, setExpirySeconds] = useState(272);
-  const [resendSeconds, setResendSeconds] = useState(45);
-  const [attemptsLeft, setAttemptsLeft] = useState(5);
-  const inputRef = useRef<any>(null);
-
-  const contactName = type === 'pickup' ? trip.contactName.split(' · ')[0] : trip.dropOffContact.split(' · ')[0];
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setExpirySeconds(prev => (prev > 0 ? prev - 1 : 0));
-      setResendSeconds(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = useCallback((secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }, []);
-
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-
-  const triggerShake = () => {
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
-    ]).start();
-  };
-
-  const handleOtpChange = (text: string) => {
-    if (text.length <= 6 && /^\d*$/.test(text)) {
-      setOtpCode(text);
-      if (text.length === 6 && text !== '123456') {
-        triggerShake();
-        setAttemptsLeft(prev => Math.max(0, prev - 1));
-        setTimeout(() => setOtpCode(''), 600);
-      }
-    }
-  };
-
-  return (
-    <View style={styles.codeContent}>
-      <GlassCard>
-        <Text style={styles.sentText}>OTP sent to {contactName} by SMS and email.</Text>
-      </GlassCard>
-
-      <View style={{ height: 24 }} />
-
-      <Text style={styles.enterCodeTitle}>Enter 6-digit code</Text>
-
-      <View style={{ height: 16 }} />
-
-      <Animated.View style={[styles.otpRow, { transform: [{ translateX: shakeAnim }] }]}>
-        {[0, 1, 2, 3, 4, 5].map(index => {
-          const char = otpCode[index] || '';
-          const isActive = index === otpCode.length;
-          const isFilled = char !== '';
-          return (
-            <TouchableInput
-              key={index}
-              onPress={() => inputRef.current?.focus()}>
-              <View
-                style={[
-                  styles.otpBox,
-                  isActive && styles.otpBoxActive,
-                  isFilled && styles.otpBoxFilled,
-                ]}>
-                <Text style={styles.otpChar}>{char}</Text>
-              </View>
-            </TouchableInput>
-          );
-        })}
-      </Animated.View>
-
-      <TextInput
-        ref={inputRef}
-        style={styles.hiddenInput}
-        value={otpCode}
-        onChangeText={handleOtpChange}
-        keyboardType="number-pad"
-        maxLength={6}
-        autoFocus
-      />
-
-      <View style={{ height: 16 }} />
-
-      <View style={styles.timerRow}>
-        <View style={[styles.expiryBadge, expirySeconds < 60 && styles.expiryBadgeUrgent]}>
-          <Text style={[styles.expiryText, expirySeconds < 60 && styles.expiryTextUrgent]}>
-            Expires in {formatTime(expirySeconds)}
-          </Text>
-        </View>
-        <Text style={[styles.resendText, resendSeconds === 0 && styles.resendReady]}>
-          {resendSeconds > 0 ? `Resend in 0:${resendSeconds.toString().padStart(2, '0')}` : 'Resend code'}
-        </Text>
-      </View>
-
-      <View style={{ height: 16 }} />
-
-      <Text style={styles.attemptsText}>
-        Attempts left: {attemptsLeft} of 5 · each attempt is logged with time and GPS.
-      </Text>
-    </View>
-  );
-};
-
-const TouchableInput: React.FC<{ onPress: () => void; children: React.ReactNode }> = ({
-  onPress,
-  children,
-}) => (
-  <View onTouchEnd={onPress}>{children}</View>
-);
 
 const styles = StyleSheet.create({
   container: {

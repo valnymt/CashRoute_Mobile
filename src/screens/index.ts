@@ -2,7 +2,7 @@ export { LoginScreen } from './LoginScreen';
 export { HomeScreen } from './HomeScreen';
 export { RequestDetailScreen } from './RequestDetailScreen';
 export { OtpVerificationScreen } from './OtpVerificationScreen';
-export type { OtpStep, OtpType } from './OtpVerificationScreen';
+export type { OtpType } from './OtpVerificationScreen';
 export { PickupVerifiedScreen } from './PickupVerifiedScreen';
 export { TripMapScreen } from './TripMapScreen';
 export { ProofOfDeliveryScreen } from './ProofOfDeliveryScreen';
