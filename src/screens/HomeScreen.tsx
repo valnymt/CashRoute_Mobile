@@ -14,8 +14,6 @@ import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 import { usePulse } from '../hooks/useAnimatedMount';
 import type { BottomNavItem } from '../components';
-//for test
-import { forceFcmTokenRefresh } from '../services/notifications';
 
 interface HomeScreenProps {
   onRequestPress: () => void;
@@ -277,17 +275,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                 </View>
               </GlassCard>
             )}
-
-            {/* for test */}
-            <TouchableOpacity
-              style={styles.viewDetailsBtn}
-              onPress={forceFcmTokenRefresh}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.viewDetailsText}>
-                TEST FCM TOKEN REFRESH
-              </Text>
-            </TouchableOpacity>
 
           </ScrollView>
         </View>

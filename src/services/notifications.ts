@@ -3,31 +3,10 @@ import {
     getMessaging,
     getToken,
     onTokenRefresh,
-    deleteToken,
 } from '@react-native-firebase/messaging';
 
 import { apiRequest } from './api';
 import { getToken as getAuthToken } from './authStorage';
-
-//for testing only
-export async function forceFcmTokenRefresh(): Promise<void> {
-    try {
-        const messaging = getMessaging();
-
-        console.log('Deleting current FCM token...');
-
-        await deleteToken(messaging);
-
-        console.log('Old FCM token deleted.');
-
-        const newToken = await getToken(messaging);
-
-        console.log('New FCM token:', newToken);
-    } catch (error) {
-        console.error('FCM token refresh test failed:', error);
-    }
-}
-
 
 async function saveFcmTokenToBackend(fcmToken: string): Promise<void> {
     const authToken = await getAuthToken();
@@ -46,20 +25,6 @@ async function saveFcmTokenToBackend(fcmToken: string): Promise<void> {
     }, authToken);
 }
 
-export function listenForFcmTokenRefresh() {
-    const messaging = getMessaging();
-
-    return onTokenRefresh(messaging, async (newToken) => {
-        console.log('🔥 NEW FCM TOKEN RECEIVED:', newToken);
-        try {
-            await saveFcmTokenToBackend(newToken);
-            console.log('FCM token refreshed and registered.');
-        } catch (error) {
-            console.error('FCM token refresh registration failed:', error);
-        }
-    });
-}
-
 export async function getFcmDeviceToken(): Promise<string | null> {
     try {
         if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
@@ -76,7 +41,7 @@ export async function getFcmDeviceToken(): Promise<string | null> {
         const messaging = getMessaging();
         const token = await getToken(messaging);
 
-        console.log('FCM device token:', token);
+        console.log('FCM token retrieval successful:', !!token);
 
         return token;
     } catch (error) {
@@ -99,4 +64,19 @@ export async function registerFcmToken(): Promise<void> {
     } catch (error) {
         console.error('FCM device registration failed:', error);
     }
+}
+
+export function listenForFcmTokenRefresh() {
+    const messaging = getMessaging();
+
+    return onTokenRefresh(messaging, async (newToken) => {
+        console.log('FCM token refresh event received.');
+
+        try {
+            await saveFcmTokenToBackend(newToken);
+            console.log('FCM token refreshed and registered.');
+        } catch (error) {
+            console.error('FCM token refresh registration failed:', error);
+        }
+    });
 }
