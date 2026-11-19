@@ -21,7 +21,7 @@ import { getToken } from '../services/authStorage';
 import { useApp } from '../store/data';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MAP_HEIGHT = SCREEN_HEIGHT * 0.55;
+const MAP_HEIGHT = SCREEN_HEIGHT * 0.70;
 
 // How long to wait after the app goes to background before actually stopping GPS.
 // This prevents transient state changes (permission dialogs, floating windows,
@@ -59,7 +59,6 @@ interface RouteGeometry {
 interface TripMapScreenProps {
   isPickup?: boolean;
   onBackClick: () => void;
-  onOpenDirections: () => void;
   onArrived: (
     cashRequestId: number,
     currentLocation: { latitude: number; longitude: number } | null,
@@ -69,7 +68,6 @@ interface TripMapScreenProps {
 export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   isPickup = true,
   onBackClick,
-  onOpenDirections,
   onArrived,
 }) => {
   const { currentTrip } = useApp();
@@ -413,9 +411,9 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
               <InfoChip text="REQ-1048" />
             </View>
 
-            <View style={{ height: 20 }} />
-            <SecondaryButton text="Open Directions" onPress={onOpenDirections} />
-            <View style={{ height: 12 }} />
+            {/* <View style={{ height: 17 }} /> */}
+            {/* <SecondaryButton text="Open Directions" onPress={onOpenDirections} /> */}
+            <View style={{ height: 8 }} />
             <PrimaryButton
               text={arrivedText}
               onPress={() => {

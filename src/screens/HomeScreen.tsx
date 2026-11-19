@@ -183,7 +183,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                   transform: [{ translateY: cardSlide }],
                 }}
               >
-                <AnimatedPressable onPress={onTripMapPress}>
+                <AnimatedPressable onPress={onRequestPress}>
                   <GlassCard style={{ marginBottom: 12 }}>
                     <View style={styles.cardContent}>
                       <View style={styles.cardHeader}>
@@ -214,7 +214,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                             { backgroundColor: Colors.PrimaryGreen },
                           ]}
                         >
-                          <Text style={styles.markerLetter}>A</Text>
+                          <Text style={styles.markerLetter}>P</Text>
                         </View>
 
                         <View style={styles.routeTextBlock}>
@@ -233,7 +233,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                             { backgroundColor: Colors.PurpleAccent },
                           ]}
                         >
-                          <Text style={styles.markerLetter}>B</Text>
+                          <Text style={styles.markerLetter}>D</Text>
                         </View>
 
                         <View style={styles.routeTextBlock}>
@@ -259,7 +259,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
 
                       <TouchableOpacity
                         style={styles.viewDetailsBtn}
-                        onPress={onTripMapPress}
+                        onPress={onRequestPress}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.viewDetailsText}>
@@ -312,6 +312,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
           onSelect={tab => {
             setSelectedTab(tab);
             if (tab === 'history') onHistoryPress?.();
+            if (tab === 'liveTrip') onTripMapPress();
           }}
         />
       </View>

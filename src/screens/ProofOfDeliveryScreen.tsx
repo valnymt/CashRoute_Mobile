@@ -65,7 +65,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
 
           <View style={{ height: 12 }} />
 
-          <Animated.View style={card2Anim}>
+          {/* <Animated.View style={card2Anim}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <Text style={styles.sectionTitle}>Denominations (provided)</Text>
@@ -75,7 +75,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                 <DenominationRow text="5k x 20" />
               </View>
             </GlassCard>
-          </Animated.View>
+          </Animated.View> */}
 
           <View style={{ height: 12 }} />
 
