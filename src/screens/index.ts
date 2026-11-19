@@ -10,3 +10,4 @@ export { RequestCompletedScreen } from './RequestCompletedScreen';
 export { NotificationsScreen } from './NotificationsScreen';
 export { TripHistoryScreen } from './TripHistoryScreen';
 export { TripDetailsScreen } from './TripDetailsScreen';
+export { ProfileScreen } from './ProfileScreen';

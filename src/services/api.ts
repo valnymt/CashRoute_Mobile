@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config/api';
+import { getToken } from './authStorage';
 
 export class ApiError extends Error {
     status: number;
@@ -15,12 +16,17 @@ export async function apiRequest<T>(
     options: RequestInit = {},
     token?: string,
 ): Promise<T> {
+    // Use the explicitly supplied token, or retrieve the saved token.
+    const authToken = token ?? await getToken();
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(authToken
+                ? { Authorization: `Bearer ${authToken}` }
+                : {}),
             ...options.headers,
         },
     });

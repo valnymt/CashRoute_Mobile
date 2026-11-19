@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   LoginScreen,
   HomeScreen,
+  ProfileScreen,
   RequestDetailScreen,
   OtpVerificationScreen,
   PickupVerifiedScreen,
@@ -19,6 +20,7 @@ type Coordinates = { latitude: number; longitude: number } | null;
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
+  Profile: undefined;
   Notifications: undefined;
   RequestDetail: undefined;
   TripMapPickup: undefined;
@@ -52,8 +54,21 @@ export const AppNavigation: React.FC = () => {
             <HomeScreen
               onRequestPress={() => navigation.navigate('RequestDetail')}
               onTripMapPress={() => navigation.navigate('TripMapPickup')}
+              onProfilePress={() => navigation.navigate('Profile')}
               onNotificationsPress={() => navigation.navigate('Notifications')}
               onHistoryPress={() => navigation.navigate('TripHistory')}
+            />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Profile">
+          {({ navigation }) => (
+            <ProfileScreen
+              onBackClick={() => navigation.goBack()}
+              onLogout={() => navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              })}
             />
           )}
         </Stack.Screen>

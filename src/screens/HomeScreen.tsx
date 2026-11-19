@@ -14,15 +14,17 @@ import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 import { usePulse } from '../hooks/useAnimatedMount';
 import type { BottomNavItem } from '../components';
+import { getUser, UserProfile } from '../services/authStorage';
 
 interface HomeScreenProps {
   onRequestPress: () => void;
   onTripMapPress: () => void;
   onNotificationsPress?: () => void;
   onHistoryPress?: () => void;
+  onProfilePress?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMapPress, onNotificationsPress, onHistoryPress }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMapPress, onNotificationsPress, onHistoryPress, onProfilePress, }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
   const { currentTrip, assignmentError, unreadCount, isRefreshing, refreshData } = useApp();
   const pulseOpacity = usePulse();
@@ -36,6 +38,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
   const bannerSlide = useRef(new Animated.Value(30)).current;
   const cardSlide = useRef(new Animated.Value(30)).current;
   const upcomingSlide = useRef(new Animated.Value(30)).current;
+  const [user, setUser] = React.useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const profile = await getUser();
+      setUser(profile);
+    };
+
+    loadUser();
+  }, []);
+  const displayName =
+    typeof user?.name === 'string' && user.name.trim()
+      ? user.name.trim()
+      : 'Not available';
+
+  const initial =
+    displayName !== 'Not available'
+      ? displayName.charAt(0).toUpperCase()
+      : 'U';
 
   useEffect(() => {
     Animated.stagger(100, [
@@ -92,9 +113,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                   </Animated.View>
                 )}
               </TouchableOpacity>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>NYM</Text>
-              </View>
+              {/* profile */}
+              <TouchableOpacity
+                style={styles.avatar}
+                onPress={onProfilePress}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Open user profile"
+              >
+                <Text style={styles.avatarText}>{initial}</Text>
+              </TouchableOpacity>
             </View>
           </Animated.View>
 

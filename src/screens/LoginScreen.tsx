@@ -10,7 +10,7 @@ import {
 import Svg, { Path, Circle } from 'react-native-svg';
 import { login } from '../services/authApi';
 import { ApiError } from '../services/api';
-import { saveToken } from '../services/authStorage';
+import { saveToken, saveUser } from '../services/authStorage';
 import { AuraBackground, PrimaryButton, SecondaryButton } from '../components';
 import { Colors } from '../theme';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
@@ -53,6 +53,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       const response = await login(username.trim(), password);
 
       await saveToken(response.token);
+      // Save actual user information returned by Laravel
+      await saveUser(response.user);
       // Register this device for Firebase push notifications.
       await registerFcmToken();
 
