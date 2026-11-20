@@ -1,58 +1,28 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Colors } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface AuraBackgroundProps {
   children: React.ReactNode;
 }
 
-export const AuraBackground: React.FC<AuraBackgroundProps> = ({ children }) => {
-  return (
-    <LinearGradient
-      colors={[Colors.DarkBgTop, Colors.DarkBgBottom]}
-      style={styles.container}>
-      {/* Green orb - bottom left */}
-      <View style={[styles.orb, styles.greenOrb]} />
-      {/* Purple orb - bottom right */}
-      <View style={[styles.orb, styles.purpleOrbRight]} />
-      {/* Purple orb - top left */}
-      <View style={[styles.orb, styles.purpleOrbLeft]} />
-      {children}
-    </LinearGradient>
-  );
-};
+export const AuraBackground: React.FC<AuraBackgroundProps> = ({ children }) => (
+  <LinearGradient colors={[Colors.DarkBgTop, Colors.DarkBgBottom]} style={styles.container}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Image source={require('../assets/images/aura-violet.png')} style={styles.violet} />
+      <Image source={require('../assets/images/aura-lime.png')} style={styles.lime} />
+      <Image source={require('../assets/images/aura-indigo.png')} style={styles.indigo} />
+    </View>
+    <SafeAreaView edges={['bottom']} style={styles.content}>{children}</SafeAreaView>
+  </LinearGradient>
+);
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  orb: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  greenOrb: {
-    width: 300,
-    height: 300,
-    bottom: -100,
-    left: -80,
-    backgroundColor: Colors.PrimaryGreen,
-    opacity: 0.06,
-  },
-  purpleOrbRight: {
-    width: 250,
-    height: 250,
-    bottom: -60,
-    right: -60,
-    backgroundColor: Colors.PurpleAccent,
-    opacity: 0.08,
-  },
-  purpleOrbLeft: {
-    width: 200,
-    height: 200,
-    top: -40,
-    left: -40,
-    backgroundColor: Colors.PurpleAccent,
-    opacity: 0.06,
-  },
+  container: { flex: 1, overflow: 'hidden' },
+  content: { flex: 1 },
+  violet: { position: 'absolute', width: 480, height: 480, left: -160, top: '34%' },
+  lime: { position: 'absolute', width: 480, height: 480, right: -188, top: '51%' },
+  indigo: { position: 'absolute', width: 500, height: 500, left: -180, top: -160 },
 });

@@ -49,6 +49,7 @@ export interface TripData {
 
   cashRequestId: number;
   tripId: number;
+  acceptedAt?: string | null;
 
   pickupLatitude: number | null;
   pickupLongitude: number | null;

@@ -1,12 +1,19 @@
-import { PermissionsAndroid, Platform } from 'react-native';
-import {
-    getMessaging,
-    getToken,
-    onTokenRefresh,
-} from '@react-native-firebase/messaging';
+import { PermissionsAndroid, Platform, TurboModuleRegistry } from 'react-native';
 
 import { apiRequest } from './api';
 import { getToken as getAuthToken } from './authStorage';
+
+function loadMessaging() {
+    if (
+        !TurboModuleRegistry.get('NativeRNFBTurboApp') ||
+        !TurboModuleRegistry.get('NativeRNFBTurboMessaging')
+    ) {
+        throw new Error('Firebase native modules are missing. Rebuild and reinstall the app to enable push notifications.');
+    }
+
+    // Loading Firebase evaluates its native modules immediately.
+    return require('@react-native-firebase/messaging') as typeof import('@react-native-firebase/messaging');
+}
 
 async function saveFcmTokenToBackend(fcmToken: string): Promise<void> {
     const authToken = await getAuthToken();
@@ -27,6 +34,8 @@ async function saveFcmTokenToBackend(fcmToken: string): Promise<void> {
 
 export async function getFcmDeviceToken(): Promise<string | null> {
     try {
+        const { getMessaging, getToken } = loadMessaging();
+
         if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
             const permission = await PermissionsAndroid.request(
                 PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
@@ -45,7 +54,7 @@ export async function getFcmDeviceToken(): Promise<string | null> {
 
         return token;
     } catch (error) {
-        console.error('Failed to get FCM device token:', error);
+        console.warn('Failed to get FCM device token:', error);
         return null;
     }
 }
@@ -66,17 +75,20 @@ export async function registerFcmToken(): Promise<void> {
     }
 }
 
-export function listenForFcmTokenRefresh() {
-    const messaging = getMessaging();
+export function listenForFcmTokenRefresh(): (() => void) | undefined {
+    try {
+        const { getMessaging, onTokenRefresh } = loadMessaging();
 
-    return onTokenRefresh(messaging, async (newToken) => {
-        console.log('FCM token refresh event received.');
-
-        try {
-            await saveFcmTokenToBackend(newToken);
-            console.log('FCM token refreshed and registered.');
-        } catch (error) {
-            console.error('FCM token refresh registration failed:', error);
-        }
-    });
+        return onTokenRefresh(getMessaging(), async (newToken) => {
+            try {
+                await saveFcmTokenToBackend(newToken);
+                console.log('FCM token refreshed and registered.');
+            } catch (error) {
+                console.warn('FCM token refresh registration failed:', error);
+            }
+        });
+    } catch (error) {
+        console.warn('Could not start the FCM token refresh listener:', error);
+        return undefined;
+    }
 }

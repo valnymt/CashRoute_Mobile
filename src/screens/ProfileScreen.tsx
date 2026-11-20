@@ -1,3 +1,4 @@
+import { useAppDialog } from '../components/AppDialog';
 import React, { useEffect, useState } from 'react';
 import {
     View,
@@ -6,7 +7,6 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -34,6 +34,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onBackClick,
     onLogout,
 }) => {
+  const showDialog = useAppDialog();
     const [user, setUser] = useState<UserProfile | null>(null);
     const [branchName, setBranchName] = useState('Not available');
     const [loading, setLoading] = useState(true);
@@ -89,7 +90,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     };
 
     const handleLogout = () => {
-        Alert.alert(
+        showDialog(
             'Log out',
             'Are you sure you want to log out of CashRoute?',
             [
@@ -111,7 +112,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             console.error('Logout error:', error);
                             setIsLoggingOut(false);
 
-                            Alert.alert(
+                            showDialog(
                                 'Logout failed',
                                 'Unable to clear your authentication data. Please try again.',
                             );

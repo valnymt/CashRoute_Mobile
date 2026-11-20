@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.CardSurface,
     borderWidth: 1,
     borderColor: Colors.CardBorder,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
   },
 });

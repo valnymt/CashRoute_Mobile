@@ -69,6 +69,7 @@ function mapAssignmentToTrip(item: BackendAssignment): TripData {
     // Numeric IDs are needed by the OTP backend.
     cashRequestId: item.cash_request_id,
     tripId: item.trip_id,
+    acceptedAt: item.accepted_at,
 
     type: item.type,
     amount: Number(item.amount).toLocaleString('en-US'),
@@ -113,9 +114,10 @@ function mapTeamMembers(item: BackendAssignment): TeamMember[] {
   })) ?? [];
 }
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AppProvider: React.FC<{
+  children: React.ReactNode;
+  isSignedIn: boolean;
+}> = ({ children, isSignedIn }) => {
   const [tripStage, setTripStage] = useState<TripStage>('assigned');
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -201,8 +203,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsRefreshing(false);
   }, []);
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    if (isSignedIn) {
+      refreshData();
+    }
+  }, [isSignedIn, refreshData]);
 
   const resetTrip = useCallback(() => {
     setTripStage('assigned');

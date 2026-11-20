@@ -1,27 +1,23 @@
+import { useAppDialog } from '../components/AppDialog';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   PermissionsAndroid,
   Platform,
-  Alert,
   AppState,
   AppStateStatus,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Geolocation from 'react-native-geolocation-service';
 import { Map, Camera, Marker, GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import { PrimaryButton, SecondaryButton } from '../components';
+import { PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 import { apiRequest } from '../services/api';
 import { getToken } from '../services/authStorage';
 import { useApp } from '../store/data';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MAP_HEIGHT = SCREEN_HEIGHT * 0.70;
 
 // How long to wait after the app goes to background before actually stopping GPS.
 // This prevents transient state changes (permission dialogs, floating windows,
@@ -70,7 +66,9 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   onBackClick,
   onArrived,
 }) => {
+  const showDialog = useAppDialog();
   const { currentTrip } = useApp();
+  const tripReference = currentTrip?.id;
   useEffect(() => {
     console.log(
       '[MAP] Current assignment:',
@@ -84,8 +82,9 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   const locationName = activeLocation?.name ?? 'Loading destination...';
   const address = activeLocation?.address ?? '';
   const [routeGeometry, setRouteGeometry] = useState<RouteGeometry | null>(null);
-  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
-  const [routeDurationMin, setRouteDurationMin] = useState<number | null>(null);
+  const [routeUnavailable, setRouteUnavailable] = useState(false);
+  const [routeRetry, setRouteRetry] = useState(0);
+  const [routeMetrics, setRouteMetrics] = useState<{ distanceKm: number; durationMin: number } | null>(null);
   const stepText = isPickup ? 'STEP 1 OF 2 · PICKUP' : 'STEP 2 OF 2 · DROP-OFF';
   const arrivedText = isPickup ? 'Arrived at Pickup' : 'Arrived at Drop-off';
 
@@ -101,12 +100,15 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   const isStartingRef = useRef(false);
   const hasPermissionRef = useRef(false);
   const backgroundTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef(AppState.currentState);
 
   // ---------------------------------------------------------------
   // 1. Fetch trip details
   // ---------------------------------------------------------------
   useEffect(() => {
+    if (!tripReference) {
+      return;
+    }
     const fetchTripDetails = async () => {
       try {
         const token = await getToken();
@@ -115,7 +117,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           return;
         }
         const response = await apiRequest<{ data: TripDetails }>(
-          `/trips/${currentTrip.id}`,
+          `/trips/${tripReference}`,
           { method: 'GET' },
           token,
         );
@@ -123,11 +125,11 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         console.log('Trip details loaded:', JSON.stringify(response.data, null, 2));
       } catch (error) {
         console.error('Trip API error:', error);
-        Alert.alert('Trip Error', 'Unable to load trip details.');
+        showDialog('Trip Error', 'Unable to load trip details.');
       }
     };
     fetchTripDetails();
-  }, [currentTrip.id]);
+  }, [showDialog, tripReference]);
 
   // ---------------------------------------------------------------
   // 2. GPS tracking (stable refs, no AppState churn)
@@ -156,7 +158,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         if (!hasPermissionRef.current) {
           const status = await Geolocation.requestAuthorization('whenInUse');
           if (status !== 'granted') {
-            Alert.alert(
+            showDialog(
               'Location Permission Required',
               'Please allow location access to use CashRoute tracking.',
             );
@@ -176,7 +178,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] ===
           PermissionsAndroid.RESULTS.GRANTED;
         if (!hasPermissionRef.current) {
-          Alert.alert(
+          showDialog(
             'Location Permission Required',
             'Please allow location access to use CashRoute tracking.',
           );
@@ -203,7 +205,6 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           distanceFilter: 0,            // receive every update; MockLoc friendly
           interval: 3000,
           fastestInterval: 2000,
-          maximumAge: 5000,
           forceRequestLocation: true,
           showLocationDialog: false,    // avoid surprise system dialogs that flip AppState
         },
@@ -214,7 +215,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     } finally {
       isStartingRef.current = false;
     }
-  }, []);
+  }, [showDialog]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -263,42 +264,68 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   // 3. Fetch road route from OSRM
   // ---------------------------------------------------------------
   useEffect(() => {
+    setRouteGeometry(null);
+    setRouteMetrics(null);
+    setRouteUnavailable(false);
     if (!tripDetails?.pickup || !tripDetails?.dropoff) return;
 
+    const { pickup, dropoff } = tripDetails;
+    const coordinates =
+      `${pickup.longitude},${pickup.latitude};${dropoff.longitude},${dropoff.latitude}`;
+    const path = `/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
+    const routeUrls = [
+      `https://router.project-osrm.org${path}`,
+      `https://routing.openstreetmap.de/routed-car${path}`,
+    ];
+    if (__DEV__ && Platform.OS === 'android') {
+      routeUrls.unshift(
+        `http://127.0.0.1:8081/cashroute-dev/road-route?coordinates=${encodeURIComponent(coordinates)}`,
+      );
+    }
+    let cancelled = false;
+    let controller: AbortController | undefined;
+
     const fetchRoadRoute = async () => {
-      try {
-        const { pickup, dropoff } = tripDetails;
-        console.log('ROUTE PICKUP:', pickup.longitude, pickup.latitude);
-        console.log('ROUTE DROPOFF:', dropoff.longitude, dropoff.latitude);
-        const url =
-          `https://router.project-osrm.org/route/v1/driving/` +
-          `${pickup.longitude},${pickup.latitude};` +
-          `${dropoff.longitude},${dropoff.latitude}` +
-          `?overview=full&geometries=geojson`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Routing server error: ${response.status}`);
-        const result = await response.json();
-        if (result.code !== 'Ok' || !result.routes?.length) {
-          throw new Error(result.message || 'No road route found.');
+      for (const routeUrl of routeUrls) {
+        if (cancelled) return;
+        const request = new AbortController();
+        controller = request;
+        const timeout = setTimeout(() => request.abort(), 8000);
+
+        try {
+          const response = await fetch(routeUrl, { signal: request.signal });
+          const result = await response.json();
+          if (cancelled) return;
+
+          if (result.code === 'NoRoute' || result.code === 'NoSegment') {
+            break;
+          }
+
+          const route = result.routes?.[0];
+          const geometry = route?.geometry;
+          if (response.ok && result.code === 'Ok' && geometry?.type === 'LineString') {
+            setRouteGeometry(geometry);
+            if (Number.isFinite(route.distance) && Number.isFinite(route.duration)) {
+              setRouteMetrics({ distanceKm: route.distance / 1000, durationMin: route.duration / 60 });
+            }
+            return;
+          }
+        } catch {
+          // Try the alternate server address if the request fails.
+        } finally {
+          clearTimeout(timeout);
         }
-        const route = result.routes[0];
-
-        setRouteGeometry(route.geometry);
-        setRouteDistanceKm(route.distance / 1000);
-        setRouteDurationMin(route.duration / 60);
-
-        console.log('Road route loaded:', route.distance / 1000, 'km');
-        console.log('Estimated driving time:', route.duration / 60, 'minutes');
-      } catch (error) {
-        console.error('Road route error:', error);
-        Alert.alert(
-          'Route Error',
-          error instanceof Error ? error.message : 'Unable to load the road route.',
-        );
       }
+
+      if (!cancelled) setRouteUnavailable(true);
     };
+
     fetchRoadRoute();
-  }, [tripDetails]);
+    return () => {
+      cancelled = true;
+      controller?.abort();
+    };
+  }, [tripDetails, routeRetry]);
 
   // ---------------------------------------------------------------
   // 4. Center camera on the trip bounds when details load
@@ -353,9 +380,15 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         {routeGeometry && (
           <GeoJSONSource id="trip-route-source" data={routeGeometry}>
             <Layer
+              id="trip-route-outline"
+              type="line"
+              paint={{ 'line-color': Colors.White, 'line-width': 9 }}
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            />
+            <Layer
               id="trip-route-line"
               type="line"
-              paint={{ 'line-color': '#2563EB', 'line-width': 5, 'line-opacity': 0.9 }}
+              paint={{ 'line-color': Colors.PurpleAccent, 'line-width': 5 }}
               layout={{ 'line-cap': 'round', 'line-join': 'round' }}
             />
           </GeoJSONSource>
@@ -364,7 +397,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         {tripDetails?.pickup && (
           <Marker lngLat={[tripDetails.pickup.longitude, tripDetails.pickup.latitude]}>
             <View style={styles.pickupMarker}>
-              <Text style={styles.markerText}>P</Text>
+              <Text style={[styles.markerText, styles.pickupMarkerText]}>A</Text>
             </View>
           </Marker>
         )}
@@ -372,7 +405,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         {tripDetails?.dropoff && (
           <Marker lngLat={[tripDetails.dropoff.longitude, tripDetails.dropoff.latitude]}>
             <View style={styles.dropoffMarker}>
-              <Text style={styles.markerText}>D</Text>
+              <Text style={styles.markerText}>B</Text>
             </View>
           </Marker>
         )}
@@ -393,8 +426,8 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       </View>
 
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={onBackClick}>
-          <Text style={styles.backArrow}>{'←'}</Text>
+        <TouchableOpacity onPress={onBackClick} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
+          <Text style={styles.backArrow}>{'‹'}</Text>
         </TouchableOpacity>
         <View style={styles.locationBadge}>
           <View style={styles.greenDot} />
@@ -402,65 +435,54 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         </View>
       </View>
 
-      <View style={styles.bottomPanel}>
-        <LinearGradient
-          colors={['transparent', Colors.DarkBgTop, Colors.DarkBgTop]}
-          style={styles.gradient}
-        >
-          <View style={styles.infoCard}>
-            <Text style={styles.stepLabel}>{stepText}</Text>
-            <Text style={styles.locationName}>{locationName}</Text>
-            <Text style={styles.address}>{address}</Text>
+      <SafeAreaView edges={['bottom']} style={styles.bottomPanel}>
+        <View style={styles.infoCard}>
+          <Text style={styles.stepLabel}>{stepText}</Text>
+          <Text style={styles.locationName}>{locationName}</Text>
+          <Text style={styles.address}>{address}</Text>
+          {routeUnavailable && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => setRouteRetry(retry => retry + 1)}
+            >
+              <Text style={styles.address}>Road route unavailable. Tap to retry.</Text>
+            </TouchableOpacity>
+          )}
 
-            <View style={styles.chipsRow}>
-              <InfoChip
-                text={
-                  routeDistanceKm !== null
-                    ? `${routeDistanceKm.toFixed(1)} km`
-                    : 'Calculating...'
-                }
-              />
-
-              <InfoChip
-                text={
-                  routeDurationMin !== null
-                    ? `${Math.ceil(routeDurationMin)} min`
-                    : 'Calculating...'
-                }
-              />
-
-              <InfoChip
-                text={tripDetails?.id ?? 'Loading...'}
-              />
-            </View>
-
-            {/* <View style={{ height: 17 }} /> */}
-            {/* <SecondaryButton text="Open Directions" onPress={onOpenDirections} /> */}
-            <View style={{ height: 8 }} />
-            <PrimaryButton
-              text={arrivedText}
-              onPress={() => {
-                if (
-                  !tripDetails?.cashRequestId ||
-                  !Number.isInteger(tripDetails.cashRequestId)
-                ) {
-                  Alert.alert(
-                    'Trip Not Ready',
-                    'The trip response does not contain a valid cash request database ID. Please refresh the trip.',
-                  );
-                  return;
-                }
-
-                onArrived(tripDetails.cashRequestId, currentLocation);
-              }}
-            />
-
-            <Text style={styles.shareNote}>
-              Sharing stops automatically when the request is Completed or Cancelled.
-            </Text>
+          <View style={styles.chipsRow}>
+            {routeMetrics && (
+              <>
+                <InfoChip text={routeMetrics.distanceKm.toFixed(1) + ' km'} />
+                <InfoChip text={Math.ceil(routeMetrics.durationMin) + ' min'} />
+              </>
+            )}
+            {tripReference && <InfoChip text={tripReference} />}
           </View>
-        </LinearGradient>
-      </View>
+
+          <View style={{ height: 12 }} />
+          <PrimaryButton
+            text={arrivedText}
+            onPress={() => {
+              if (
+                !tripDetails?.cashRequestId ||
+                !Number.isInteger(tripDetails.cashRequestId)
+              ) {
+                showDialog(
+                  'Trip Not Ready',
+                  'The trip response does not contain a valid cash request database ID. Please refresh the trip.',
+                );
+                return;
+              }
+
+              onArrived(tripDetails.cashRequestId, currentLocation);
+            }}
+          />
+
+          <Text style={styles.shareNote}>
+            Sharing stops automatically when the request is Completed or Cancelled.
+          </Text>
+        </View>
+      </SafeAreaView>
     </View>
   );
 };
@@ -473,15 +495,16 @@ const InfoChip: React.FC<{ text: string }> = ({ text }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.DarkBgTop },
-  map: { position: 'absolute', top: 0, left: 0, right: 0, height: MAP_HEIGHT },
+  map: { flex: 1, backgroundColor: '#EDF0E9' },
   pickupMarker: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: '#16A34A',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.PrimaryGreen,
     borderWidth: 3, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center',
   },
   dropoffMarker: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: '#E53935',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.PurpleAccent,
     borderWidth: 3, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center',
   },
+  pickupMarkerText: { color: '#1A0B2E' },
   markerText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
   currentLocationMarker: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(52, 152, 219, 0.25)',
@@ -495,20 +518,25 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 56, left: 16, right: 16,
     flexDirection: 'row', alignItems: 'center',
   },
-  backArrow: { fontSize: 24, color: Colors.White, marginRight: 16 },
+  backButton: {
+    width: 44, height: 44, borderRadius: 22, borderWidth: 1,
+    borderColor: Colors.CardBorder, backgroundColor: Colors.DarkBgTop,
+    alignItems: 'center', justifyContent: 'center', marginRight: 10,
+  },
+  backArrow: { fontSize: 26, lineHeight: 29, color: Colors.White },
   locationBadge: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.CardSurface,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.DarkBgTop,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.CardBorder,
   },
   greenDot: {
     width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.PrimaryGreen, marginRight: 8,
   },
   locationText: { ...Typography.bodySmall, color: Colors.White },
-  bottomPanel: { position: 'absolute', bottom: 0, left: 0, right: 0 },
-  gradient: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 40 },
+  bottomPanel: { backgroundColor: Colors.DarkBgBottom },
   infoCard: {
-    backgroundColor: 'rgba(30, 11, 58, 0.9)', borderWidth: 1, borderColor: Colors.CardBorder,
-    borderRadius: 20, padding: 20,
+    backgroundColor: '#2A1643', borderWidth: 1, borderColor: Colors.CardBorder,
+    borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 22,
   },
   stepLabel: { ...Typography.labelMedium, color: Colors.PrimaryGreen, letterSpacing: 1.5 },
   locationName: {

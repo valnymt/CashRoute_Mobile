@@ -24,8 +24,8 @@ export interface BranchDirectoryItem {
     registered: boolean;
 }
 
-export async function getMyProfile(): Promise<UserProfile> {
-    return apiRequest<UserProfile>('/me', {
+export async function getMyProfile(): Promise<{ data: UserProfile }> {
+    return apiRequest<{ data: UserProfile }>('/me', {
         method: 'GET',
     });
 }

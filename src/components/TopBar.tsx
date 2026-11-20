@@ -12,8 +12,8 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ title, onBackClick, style }) => {
   return (
     <View style={[styles.container, style]}>
-      <TouchableOpacity onPress={onBackClick} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={styles.backArrow}>{'←'}</Text>
+      <TouchableOpacity onPress={onBackClick} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
+        <Text style={styles.backArrow}>{'‹'}</Text>
       </TouchableOpacity>
       <Text style={styles.title}>{title}</Text>
     </View>
@@ -26,12 +26,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
-  backArrow: {
-    fontSize: 24,
-    color: Colors.White,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: Colors.CardBorder,
+    backgroundColor: Colors.CardSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
+  backArrow: {
+    fontSize: 26,
+    lineHeight: 29,
+    color: Colors.White,
+  },
   title: {
+    flexShrink: 1,
     ...Typography.headlineMedium,
     color: Colors.White,
   },

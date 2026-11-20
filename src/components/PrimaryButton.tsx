@@ -49,6 +49,8 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 
   return (
     <TouchableWithoutFeedback
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={isDisabled ? undefined : onPress}
       onPressIn={isDisabled ? undefined : handlePressIn}
       onPressOut={handlePressOut}>
@@ -75,8 +77,16 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 const styles = StyleSheet.create({
   button: {
     backgroundColor: Colors.PrimaryGreen,
-    borderRadius: 28,
+    borderRadius: 32,
+    minHeight: 54,
+    paddingHorizontal: 22,
     paddingVertical: 16,
+    justifyContent: 'center',
+    shadowColor: Colors.GreenGlow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 11,
+    elevation: 4,
     alignItems: 'center',
     width: '100%',
   },
@@ -89,7 +99,7 @@ const styles = StyleSheet.create({
   },
   text: {
     ...Typography.titleMedium,
-    color: Colors.Black,
+    color: '#1A0B2E',
     fontWeight: '700',
   },
 });
