@@ -22,6 +22,15 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
+  if (!currentTrip) {
+    return (
+      <AuraBackground>
+        <Text style={styles.subtitle}>No active assignment.</Text>
+        <PrimaryButton text="Go back" onPress={onBackClick} />
+      </AuraBackground>
+    );
+  }
+
   return (
     <AuraBackground>
       <View style={styles.container}>

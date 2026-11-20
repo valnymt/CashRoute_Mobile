@@ -10,7 +10,7 @@ interface SecondaryButtonProps {
 
 export const SecondaryButton: React.FC<SecondaryButtonProps> = ({ text, onPress, style }) => {
   return (
-    <TouchableOpacity style={[styles.button, style]} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity style={[styles.button, style]} onPress={onPress} accessibilityRole="button" activeOpacity={0.8}>
       <Text style={styles.text}>{text}</Text>
     </TouchableOpacity>
   );
@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
   button: {
     borderWidth: 1,
     borderColor: Colors.CardBorder,
-    borderRadius: 28,
+    borderRadius: 32,
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',

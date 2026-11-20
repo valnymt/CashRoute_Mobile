@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { AppProvider } from './src/store';
 import { AppNavigation } from './src/navigation/AppNavigation';
 import { listenForFcmTokenRefresh } from './src/services/notifications';
 
 function App() {
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
 
@@ -14,8 +16,12 @@ function App() {
   }, []);
 
   return (
-    <AppProvider>
-      <AppNavigation />
+    <AppProvider key={String(isSignedIn)} isSignedIn={isSignedIn}>
+      <AppNavigation
+        isSignedIn={isSignedIn}
+        onLoginSuccess={() => setIsSignedIn(true)}
+        onLogout={() => setIsSignedIn(false)}
+      />
     </AppProvider>
   );
 }

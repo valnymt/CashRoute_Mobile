@@ -73,6 +73,7 @@ function mapAssignmentToTrip(item: BackendAssignment): TripData {
     // Numeric IDs are needed by the OTP backend.
     cashRequestId: item.cash_request_id,
     tripId: item.trip_id,
+    acceptedAt: item.accepted_at,
 
     type: item.type,
     amount: Number(item.amount).toLocaleString('en-US'),
@@ -117,9 +118,10 @@ function mapTeamMembers(item: BackendAssignment): TeamMember[] {
   })) ?? [];
 }
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AppProvider: React.FC<{
+  children: React.ReactNode;
+  isSignedIn: boolean;
+}> = ({ children, isSignedIn }) => {
   const [tripStage, setTripStage] = useState<TripStage>('assigned');
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -206,47 +208,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
   useEffect(() => {
     refreshData();
-  }, [refreshData]);
-  useEffect(() => {
-    const messaging = getMessaging();
+    if (isSignedIn) {
+      refreshData();
+    }
+  }, [isSignedIn, refreshData]);
 
-    const unsubscribe = onMessage(messaging, async remoteMessage => {
-      console.log('Mapped notification:', notification);
 
-      setNotifications(prev => {
-        const updated = [
-          notification,
-          ...prev.filter(item => item.id !== notification.id),
-        ];
-
-        console.log('Updated notification list:', updated);
-
-        return updated;
-      });
-      console.log('FCM notification received:', remoteMessage);
-
-      const notification: NotificationData = {
-        id: remoteMessage.messageId || String(Date.now()),
-        title: remoteMessage.notification?.title || 'New Notification',
-        detail: remoteMessage.notification?.body || '',
-        time: 'Just now',
-        isNew: true,
-        relatedTripId: remoteMessage.data?.trip_id
-          ? String(remoteMessage.data.trip_id)
-          : undefined,
-      };
-
-      setNotifications(prev => [
-        notification,
-        ...prev.filter(item => item.id !== notification.id),
-      ]);
-    });
-
-    return unsubscribe;
-  }, []);
   const resetTrip = useCallback(() => {
     setTripStage('assigned');
   }, []);
+
 
   return (
     <AppContext.Provider

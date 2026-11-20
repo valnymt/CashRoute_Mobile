@@ -35,6 +35,15 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
     }, 1200);
   };
 
+  if (!currentTrip) {
+    return (
+      <AuraBackground>
+        <Text style={styles.greenLabel}>No active assignment.</Text>
+        <PrimaryButton text="Go back" onPress={onBackClick} />
+      </AuraBackground>
+    );
+  }
+
   return (
     <AuraBackground>
       <View style={styles.container}>

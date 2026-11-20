@@ -1,5 +1,6 @@
+import { useAppDialog } from '../components/AppDialog';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Linking, Alert, } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Linking, } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
@@ -57,6 +58,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
   onBackClick,
   onStartTrip,
 }) => {
+  const showDialog = useAppDialog();
   const { currentTrip, teamMembers, user, refreshData } = useApp();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -73,7 +75,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
 
   const handleAccept = async () => {
     if (!currentTrip) {
-      Alert.alert(
+      showDialog(
         'No assignment',
         'There is no assignment available to accept.',
       );
@@ -86,7 +88,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
       const token = await getToken();
 
       if (!token) {
-        Alert.alert(
+        showDialog(
           'Authentication required',
           'Please log in again before accepting this assignment.',
         );
@@ -108,7 +110,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
     } catch (error) {
       console.error('Accept assignment error:', error);
 
-      Alert.alert(
+      showDialog(
         'Unable to accept assignment',
         error instanceof Error
           ? error.message
@@ -374,17 +376,14 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
           )}
         </ScrollView>
 
-        {currentTrip &&
-          currentTrip.status !== 'Assigned' &&
-          currentTrip.status !== 'In Transit' &&
-          currentTrip.status !== 'Completed' && (
-            <PrimaryButton
-              text={isLoading ? 'Accepting...' : 'Accept Assignment'}
-              onPress={handleAccept}
-              loading={isLoading}
-              style={styles.acceptBtn}
-            />
-          )}
+        {currentTrip && (currentTrip.acceptedAt || currentTrip.status === 'Assigned') && (
+          <PrimaryButton
+            text={currentTrip.acceptedAt ? 'Open Trip Map' : 'Accept Assignment'}
+            onPress={currentTrip.acceptedAt ? onStartTrip : handleAccept}
+            loading={isLoading}
+            style={styles.acceptBtn}
+          />
+        )}
       </View>
     </AuraBackground>
   );

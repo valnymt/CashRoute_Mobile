@@ -19,6 +19,15 @@ export const RequestCompletedScreen: React.FC<RequestCompletedScreenProps> = ({
   const checkAnim = useScaleAnimation();
   const contentAnim = useAnimatedMount(300, 500);
 
+  if (!currentTrip) {
+    return (
+      <AuraBackground>
+        <Text style={styles.subtitle}>No active assignment.</Text>
+        <PrimaryButton text="Go back" onPress={onBackToAssignments} />
+      </AuraBackground>
+    );
+  }
+
   return (
     <AuraBackground>
       <View style={styles.container}>

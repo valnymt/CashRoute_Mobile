@@ -60,6 +60,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ selected, onSelect }
         return (
           <TouchableOpacity
             key={item.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
             style={styles.tab}
             onPress={() => onSelect(item.key)}
             activeOpacity={0.7}>
@@ -80,7 +82,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.TabBarBg,
     borderTopWidth: 1,
     borderTopColor: Colors.CardBorder,
-    paddingBottom: 20,
+    paddingBottom: 14,
     paddingTop: 12,
   },
   tab: {
@@ -91,6 +93,8 @@ const styles = StyleSheet.create({
     ...Typography.labelSmall,
     color: Colors.TextDim,
     marginTop: 4,
+    letterSpacing: 0,
+    fontSize: 11,
   },
   activeLabel: {
     color: Colors.PrimaryGreen,

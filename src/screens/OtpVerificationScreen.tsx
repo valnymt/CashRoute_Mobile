@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   Animated,
-  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import {
   AuraBackground,
@@ -14,6 +17,7 @@ import {
   PrimaryButton,
 } from '../components';
 import { Colors, Typography } from '../theme';
+import { useAppDialog } from '../components/AppDialog';
 import { useApp } from '../store/data';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
 import {
@@ -42,13 +46,15 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   onVerified,
 }) => {
   const { currentTrip } = useApp();
+  const showDialog = useAppDialog();
+  const [feedback, setFeedback] = useState<{ message: string; invalidCode?: boolean } | null>(null);
   const [step, setStep] = useState<'request' | 'enterCode'>('request');
   const [isLoading, setIsLoading] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpId, setOtpId] = useState<number | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [expirySeconds, setExpirySeconds] = useState(0);
-  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+  const [codeFocused, setCodeFocused] = useState(false);
   const contentAnim = useAnimatedMount(100, 400);
 
   const title = type === 'pickup' ? 'Pickup verification' : 'Drop-off verification';
@@ -84,21 +90,15 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     if (isLoading) return;
 
     try {
+      setFeedback(null);
       setIsLoading(true);
       const response = await requestHandoverOtp(cashRequestId, otpStage);
       setOtpId(response.otp_id);
       setExpiresAt(response.expires_at);
       setOtpCode('');
       setStep('enterCode');
-      Alert.alert(
-        'OTP Sent',
-        'A verification code has been sent to the registered email address.',
-      );
     } catch (error) {
-      Alert.alert(
-        'OTP Error',
-        error instanceof Error ? error.message : 'Unable to send OTP.',
-      );
+      setFeedback({ message: error instanceof Error ? error.message : 'Unable to send OTP.' });
     } finally {
       setIsLoading(false);
     }
@@ -108,21 +108,22 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     if (isLoading) return;
 
     if (!otpId) {
-      Alert.alert('OTP Error', 'Please request an OTP first.');
+      setFeedback({ message: 'Please request an OTP first.' });
       return;
     }
 
     if (expirySeconds <= 0) {
-      Alert.alert('OTP Expired', 'Please request a new verification code.');
+      setFeedback({ message: 'This code has expired. Request a new verification code.' });
       return;
     }
 
     if (otpCode.length !== 6) {
-      Alert.alert('Invalid OTP', 'Please enter the complete 6-digit code.');
+      setFeedback({ message: 'Please enter the complete 6-digit code.', invalidCode: true });
       return;
     }
 
     try {
+      setFeedback(null);
       setIsLoading(true);
       const response = await verifyHandoverOtp(
         otpId,
@@ -131,7 +132,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
         currentLocation?.longitude,
       );
 
-      Alert.alert('Verification Successful', response.message, [
+      showDialog('Verification Successful', response.message, [
         {
           text: 'Continue',
           onPress: () => {
@@ -140,10 +141,8 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
         },
       ]);
     } catch (error) {
-      Alert.alert(
-        'Verification Failed',
-        error instanceof Error ? error.message : 'Unable to verify OTP.',
-      );
+      Keyboard.dismiss();
+      setFeedback({ message: error instanceof Error ? error.message : 'Unable to verify OTP.', invalidCode: true });
     } finally {
       setIsLoading(false);
     }
@@ -153,6 +152,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     if (step === 'enterCode') {
       // Going back to the request stage clears this OTP locally.
       // The next request expires the previous pending OTP on the backend.
+      setFeedback(null);
       setStep('request');
       setOtpId(null);
       setExpiresAt(null);
@@ -175,142 +175,167 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   const handleOtpChange = (text: string) => {
     if (/^\d{0,6}$/.test(text)) {
       setOtpCode(text);
+      if (feedback?.invalidCode) setFeedback(null);
     }
   };
 
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-
   return (
     <AuraBackground>
-      <View style={styles.container}>
-        <TopBar title={title} onBackClick={handleBack} />
+      <KeyboardAvoidingView style={styles.keyboardContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={styles.container}
+        >
+          <TopBar title={title} onBackClick={handleBack} />
 
-        <View style={styles.stepRow}>
-          <View style={styles.stepItem}>
-            <View style={[styles.stepNumber, styles.activeStep]}>
-              <Text style={styles.stepNumberText}>1</Text>
-            </View>
-            <Text style={[styles.stepLabel, styles.activeStepLabel]}>Pickup</Text>
-          </View>
-          <View style={[styles.stepLine, currentStep >= 2 && styles.activeLine]} />
-          <View style={styles.stepItem}>
-            <View style={[styles.stepNumber, currentStep >= 2 && styles.activeStep]}>
-              <Text style={[styles.stepNumberText, currentStep < 2 && styles.inactiveStepText]}>2</Text>
-            </View>
-            <Text style={[styles.stepLabel, currentStep >= 2 && styles.activeStepLabel]}>Drop-off</Text>
-          </View>
-        </View>
-
-        <Animated.View style={[styles.content, contentAnim]}>
-          {step === 'request' ? (
-            <View style={styles.requestContent}>
-              <View style={styles.otpCircle}>
-                <Text style={styles.otpCircleText}>OTP</Text>
+          <View style={styles.stepRow}>
+            <View style={styles.stepItem}>
+              <View style={[styles.stepNumber, styles.activeStep]}>
+                <Text style={styles.stepNumberText}>1</Text>
               </View>
-              <Text style={styles.verifyTitle}>
-                Verify handover at {type === 'pickup' ? 'pickup' : 'drop-off'}
-              </Text>
-              <Text style={styles.verifyDesc}>
-                A one-time code will be sent to the registered contact at this location.
-              </Text>
-              <View style={{ height: 24 }} />
-              <GlassCard>
-                <View style={styles.contactCard}>
-                  <Text style={styles.sendingToLabel}>SENDING TO</Text>
-                  <Text style={styles.contactName}>{contactName || 'Registered contact'}</Text>
-                  <Text style={styles.contactInfo}>{contactInfo || 'Registered email address'}</Text>
-                </View>
-              </GlassCard>
+              <Text style={[styles.stepLabel, styles.activeStepLabel]}>Pickup</Text>
             </View>
-          ) : (
-            <View style={styles.codeContent}>
-              <GlassCard>
-                <Text style={styles.sentText}>
-                  OTP sent to {cleanContactName} by email.
+            <View style={[styles.stepLine, currentStep >= 2 && styles.activeLine]} />
+            <View style={styles.stepItem}>
+              <View style={[styles.stepNumber, currentStep >= 2 && styles.activeStep]}>
+                <Text style={[styles.stepNumberText, currentStep < 2 && styles.inactiveStepText]}>2</Text>
+              </View>
+              <Text style={[styles.stepLabel, currentStep >= 2 && styles.activeStepLabel]}>Drop-off</Text>
+            </View>
+          </View>
+
+          <Animated.View style={[styles.content, contentAnim]}>
+            {step === 'request' ? (
+              <View style={styles.requestContent}>
+                <View style={styles.otpCircle}>
+                  <Text style={styles.otpCircleText}>OTP</Text>
+                </View>
+                <Text style={styles.verifyTitle}>
+                  Verify handover at {type === 'pickup' ? 'pickup' : 'drop-off'}
                 </Text>
-              </GlassCard>
-              <View style={{ height: 24 }} />
-              <Text style={styles.enterCodeTitle}>Enter 6-digit code</Text>
+                <Text style={styles.verifyDesc}>
+                  A one-time code will be sent to the registered contact at this location.
+                </Text>
+                <View style={{ height: 24 }} />
+                <GlassCard>
+                  <View style={styles.contactCard}>
+                    <Text style={styles.sendingToLabel}>SENDING TO</Text>
+                    <Text style={styles.contactName}>{contactName || 'Registered contact'}</Text>
+                    <Text style={styles.contactInfo}>{contactInfo || 'Registered email address'}</Text>
+                  </View>
+                </GlassCard>
+              </View>
+            ) : (
+              <View style={styles.codeContent}>
+                <GlassCard style={styles.sentCard}>
+                  <Text style={styles.sentText}>
+                    OTP sent to {cleanContactName} by email.
+                  </Text>
+                </GlassCard>
+                <View style={{ height: 14 }} />
+                <Text style={styles.enterCodeTitle}>Enter 6-digit code</Text>
+                <View style={{ height: 16 }} />
+                <View style={styles.codeEntry}>
+                  <View
+                    style={styles.otpRow}
+                    pointerEvents="none"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
+                    {[0, 1, 2, 3, 4, 5].map(index => {
+                      const char = otpCode[index] || '';
+                      const isActive = codeFocused && index === otpCode.length;
+                      const isFilled = char !== '';
+                      return (
+                        <View
+                          key={index}
+                          style={[
+                            styles.otpBox,
+                            isActive && styles.otpBoxActive,
+                            isFilled && styles.otpBoxFilled,
+                            feedback?.invalidCode && styles.otpBoxInvalid,
+                          ]}
+                        >
+                          <Text style={[styles.otpChar, feedback?.invalidCode && styles.otpCharInvalid]}>{char}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <TextInput
+                    style={styles.codeInput}
+                    value={otpCode}
+                    onFocus={() => setCodeFocused(true)}
+                    onBlur={() => setCodeFocused(false)}
+                    onChangeText={handleOtpChange}
+                    accessibilityLabel="Six-digit verification code"
+                    keyboardType="number-pad"
+                    keyboardAppearance="dark"
+                    selectionColor="transparent"
+                    caretHidden
+                    returnKeyType="done"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </View>
+                <View style={{ height: 16 }} />
+                <View style={styles.timerRow}>
+                  <View style={[styles.expiryBadge, expirySeconds < 60 && styles.expiryBadgeUrgent]}>
+                    <Text style={[styles.expiryText, expirySeconds < 60 && styles.expiryTextUrgent]}>
+                      {expirySeconds > 0 ? `Expires in ${formatTime(expirySeconds)}` : 'OTP expired'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ height: 16 }} />
+                <Text style={styles.attemptsText}>
+                  Maximum 3 verification attempts. Each attempt is recorded with time and GPS.
+                </Text>
+              </View>
+            )}
+            {!!feedback && (
+              <View style={styles.feedback} accessibilityLiveRegion="polite">
+                <Text style={styles.feedbackText}>{feedback.message}</Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {step === 'request' ? (
+            <>
+              <PrimaryButton
+                text={isLoading ? 'Sending...' : 'Request OTP'}
+                onPress={handleRequestOtp}
+                loading={isLoading}
+                style={{ marginBottom: 8 }}
+              />
+              <Text style={styles.footerText}>
+                OTP expires after 5 minutes. Maximum 3 verification attempts.
+              </Text>
               <View style={{ height: 16 }} />
-              <Animated.View style={[styles.otpRow, { transform: [{ translateX: shakeAnim }] }]}>
-                {[0, 1, 2, 3, 4, 5].map(index => {
-                  const char = otpCode[index] || '';
-                  const isActive = index === otpCode.length;
-                  const isFilled = char !== '';
-                  return (
-                    <View
-                      key={index}
-                      onTouchEnd={() => inputRef.current?.focus()}
-                      style={[
-                        styles.otpBox,
-                        isActive && styles.otpBoxActive,
-                        isFilled && styles.otpBoxFilled,
-                      ]}
-                    >
-                      <Text style={styles.otpChar}>{char}</Text>
-                    </View>
-                  );
-                })}
-              </Animated.View>
-              <TextInput
-                ref={inputRef}
-                style={styles.hiddenInput}
-                value={otpCode}
-                onChangeText={handleOtpChange}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
+            </>
+          ) : (
+            <>
+              <PrimaryButton
+                text={isLoading ? 'Verifying...' : 'Verify'}
+                onPress={handleVerify}
+                loading={isLoading}
+                style={{ marginBottom: 8 }}
               />
               <View style={{ height: 16 }} />
-              <View style={styles.timerRow}>
-                <View style={[styles.expiryBadge, expirySeconds < 60 && styles.expiryBadgeUrgent]}>
-                  <Text style={[styles.expiryText, expirySeconds < 60 && styles.expiryTextUrgent]}>
-                    {expirySeconds > 0 ? `Expires in ${formatTime(expirySeconds)}` : 'OTP expired'}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ height: 16 }} />
-              <Text style={styles.attemptsText}>
-                Maximum 3 verification attempts. Each attempt is recorded with time and GPS.
-              </Text>
-            </View>
+            </>
           )}
-        </Animated.View>
-
-        {step === 'request' ? (
-          <>
-            <PrimaryButton
-              text={isLoading ? 'Sending...' : 'Request OTP'}
-              onPress={handleRequestOtp}
-              loading={isLoading}
-              style={{ marginBottom: 8 }}
-            />
-            <Text style={styles.footerText}>
-              OTP expires after 5 minutes. Maximum 3 verification attempts.
-            </Text>
-            <View style={{ height: 16 }} />
-          </>
-        ) : (
-          <>
-            <PrimaryButton
-              text={isLoading ? 'Verifying...' : 'Verify'}
-              onPress={handleVerify}
-              loading={isLoading}
-              style={{ marginBottom: 8 }}
-            />
-            <View style={{ height: 16 }} />
-          </>
-        )}
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </AuraBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardContainer: { flex: 1 },
   container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
+    flexGrow: 1,
+    paddingHorizontal: 22,
+    paddingTop: 44,
   },
   stepRow: {
     flexDirection: 'row',
@@ -323,9 +348,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: Colors.CardBorder,
     justifyContent: 'center',
     alignItems: 'center',
@@ -345,13 +370,13 @@ const styles = StyleSheet.create({
     color: Colors.TextDim,
   },
   activeStep: {
-    backgroundColor: Colors.PrimaryGreen,
+    backgroundColor: Colors.PurpleAccent,
   },
   activeStepLabel: {
     color: Colors.White,
   },
   stepLine: {
-    width: 40,
+    flex: 1,
     height: 2,
     backgroundColor: Colors.CardBorder,
     marginHorizontal: 12,
@@ -361,23 +386,24 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: 24,
+    marginTop: 14,
   },
   requestContent: {
     alignItems: 'center',
   },
   otpCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 1,
     borderColor: Colors.PrimaryGreen,
+    backgroundColor: Colors.PurpleAccent,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
   },
   otpCircleText: {
-    ...Typography.titleLarge,
+    ...Typography.headlineLarge,
     color: Colors.PrimaryGreen,
   },
   verifyTitle: {
@@ -413,27 +439,36 @@ const styles = StyleSheet.create({
   codeContent: {
     width: '100%',
   },
+  sentCard: {
+    borderColor: Colors.PrimaryGreen,
+    borderRadius: 20,
+    backgroundColor: 'rgba(150, 215, 76, 0.08)',
+  },
   sentText: {
     ...Typography.bodyMedium,
-    color: Colors.White,
-    padding: 16,
+    color: Colors.PrimaryGreen,
+    fontSize: 13,
+    padding: 13,
   },
   enterCodeTitle: {
     ...Typography.headlineMedium,
     color: Colors.White,
     fontWeight: '700',
   },
+  codeEntry: { position: 'relative' },
   otpRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 6,
   },
   otpBox: {
-    width: 48,
-    height: 52,
+    flex: 1,
+    maxWidth: 50,
+    height: 60,
     backgroundColor: Colors.CardSurface,
     borderWidth: 1,
     borderColor: Colors.CardBorder,
-    borderRadius: 12,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -444,16 +479,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.PrimaryGreen,
     backgroundColor: 'rgba(150, 215, 76, 0.08)',
   },
+  otpBoxInvalid: { borderColor: Colors.AccentRed, backgroundColor: Colors.CardSurface },
+  otpCharInvalid: { color: Colors.AccentRed },
   otpChar: {
     ...Typography.headlineLarge,
     color: Colors.White,
     fontWeight: '700',
   },
-  hiddenInput: {
+  codeInput: {
     position: 'absolute',
-    opacity: 0,
-    width: 1,
-    height: 1,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    color: 'transparent',
+    backgroundColor: 'transparent',
+    padding: 0,
   },
   timerRow: {
     flexDirection: 'row',
@@ -461,17 +502,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   expiryBadge: {
-    backgroundColor: 'rgba(150, 215, 76, 0.15)',
+    backgroundColor: 'rgba(255, 188, 82, 0.14)',
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 16,
   },
   expiryBadgeUrgent: {
     backgroundColor: 'rgba(255, 82, 82, 0.15)',
   },
   expiryText: {
     ...Typography.labelLarge,
-    color: Colors.PrimaryGreen,
+    fontSize: 13,
+    letterSpacing: 0,
+    color: '#FFBC52',
   },
   expiryTextUrgent: {
     color: Colors.AccentRed,
@@ -487,6 +530,15 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.TextSecondary,
   },
+  feedback: {
+    marginTop: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.AccentRed,
+    borderRadius: 20,
+    backgroundColor: Colors.ErrorSurface,
+  },
+  feedbackText: { ...Typography.bodySmall, color: Colors.AccentRed },
   footerText: {
     ...Typography.bodySmall,
     color: Colors.TextDim,

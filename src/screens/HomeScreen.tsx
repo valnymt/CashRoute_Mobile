@@ -28,6 +28,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
   const { currentTrip, assignmentError, unreadCount, isRefreshing, refreshData } = useApp();
   const pulseOpacity = usePulse();
+  const openCurrentTrip = currentTrip?.acceptedAt ? onTripMapPress : onRequestPress;
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bannerAnim = useRef(new Animated.Value(0)).current;
@@ -183,7 +184,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                   transform: [{ translateY: cardSlide }],
                 }}
               >
-                <AnimatedPressable onPress={onRequestPress}>
+                <AnimatedPressable onPress={openCurrentTrip}>
                   <GlassCard style={{ marginBottom: 12 }}>
                     <View style={styles.cardContent}>
                       <View style={styles.cardHeader}>
@@ -259,7 +260,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
 
                       <TouchableOpacity
                         style={styles.viewDetailsBtn}
-                        onPress={onRequestPress}
+                        onPress={openCurrentTrip}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.viewDetailsText}>
@@ -326,8 +327,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
+    paddingHorizontal: 22,
+    paddingTop: 42,
   },
   header: {
     flexDirection: 'row',
@@ -351,22 +352,30 @@ const styles = StyleSheet.create({
   },
   bellContainer: {
     position: 'relative',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: Colors.CardBorder,
+    backgroundColor: Colors.CardSurface,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notifDot: {
     position: 'absolute',
-    top: -4,
-    right: -6,
+    top: 3,
+    right: 2,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.AccentRed,
+    backgroundColor: Colors.PrimaryGreen,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 3,
   },
   notifCount: {
     fontSize: 9,
-    color: Colors.White,
+    color: '#1A0B2E',
     fontWeight: '700',
   },
   avatar: {
@@ -389,8 +398,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: 'rgba(150, 215, 76, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(150, 215, 76, 0.25)',
-    borderRadius: 16,
+    borderColor: 'rgba(150, 215, 76, 0.55)',
+    borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginTop: 16,
@@ -423,8 +432,9 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...Typography.labelMedium,
     color: Colors.PrimaryGreen,
-    letterSpacing: 1.5,
-    marginTop: 20,
+    fontSize: 11,
+    letterSpacing: 0,
+    marginTop: 12,
     marginBottom: 10,
   },
   cardContent: {
@@ -441,14 +451,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   depositBadge: {
-    backgroundColor: 'rgba(150, 215, 76, 0.15)',
+    backgroundColor: 'rgba(135, 132, 246, 0.26)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   depositBadgeText: {
     ...Typography.labelSmall,
-    color: Colors.PrimaryGreen,
+    letterSpacing: 0,
+    color: '#D1D6FF',
   },
   amountLabel: {
     ...Typography.bodySmall,
@@ -504,20 +515,27 @@ const styles = StyleSheet.create({
     color: Colors.TextSecondary,
   },
   assignedBadge: {
-    backgroundColor: 'rgba(150, 215, 76, 0.15)',
+    backgroundColor: Colors.PurpleAccent,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   assignedBadgeText: {
     ...Typography.labelSmall,
-    color: Colors.PrimaryGreen,
+    letterSpacing: 0,
+    color: Colors.White,
   },
   viewDetailsBtn: {
     backgroundColor: Colors.PrimaryGreen,
-    borderRadius: 28,
-    paddingVertical: 14,
+    borderRadius: 32,
+    minHeight: 54,
+    justifyContent: 'center',
     alignItems: 'center',
+    elevation: 4,
+    shadowColor: Colors.GreenGlow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 11,
   },
   emptyAssignment: {
     padding: 24,
