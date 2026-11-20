@@ -48,7 +48,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   const [otpId, setOtpId] = useState<number | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [expirySeconds, setExpirySeconds] = useState(0);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const contentAnim = useAnimatedMount(100, 400);
 
   const title = type === 'pickup' ? 'Pickup verification' : 'Drop-off verification';

@@ -93,7 +93,6 @@ export const AppNavigation: React.FC = () => {
             <TripMapScreen
               isPickup
               onBackClick={() => navigation.goBack()}
-              onOpenDirections={() => { }}
               onArrived={(cashRequestId, currentLocation) =>
                 navigation.navigate('OtpPickup', { cashRequestId, currentLocation })
               }
@@ -127,7 +126,6 @@ export const AppNavigation: React.FC = () => {
             <TripMapScreen
               isPickup={false}
               onBackClick={() => navigation.goBack()}
-              onOpenDirections={() => { }}
               onArrived={(cashRequestId, currentLocation) =>
                 navigation.navigate('OtpDropOff', { cashRequestId, currentLocation })
               }

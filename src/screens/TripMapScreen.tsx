@@ -84,6 +84,8 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   const locationName = activeLocation?.name ?? 'Loading destination...';
   const address = activeLocation?.address ?? '';
   const [routeGeometry, setRouteGeometry] = useState<RouteGeometry | null>(null);
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [routeDurationMin, setRouteDurationMin] = useState<number | null>(null);
   const stepText = isPickup ? 'STEP 1 OF 2 · PICKUP' : 'STEP 2 OF 2 · DROP-OFF';
   const arrivedText = isPickup ? 'Arrived at Pickup' : 'Arrived at Drop-off';
 
@@ -279,9 +281,14 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         if (result.code !== 'Ok' || !result.routes?.length) {
           throw new Error(result.message || 'No road route found.');
         }
-        setRouteGeometry(result.routes[0].geometry);
-        console.log('Road route loaded:', result.routes[0].distance / 1000, 'km');
-        console.log('Estimated driving time:', result.routes[0].duration / 60, 'minutes');
+        const route = result.routes[0];
+
+        setRouteGeometry(route.geometry);
+        setRouteDistanceKm(route.distance / 1000);
+        setRouteDurationMin(route.duration / 60);
+
+        console.log('Road route loaded:', route.distance / 1000, 'km');
+        console.log('Estimated driving time:', route.duration / 60, 'minutes');
       } catch (error) {
         console.error('Road route error:', error);
         Alert.alert(
@@ -406,9 +413,25 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             <Text style={styles.address}>{address}</Text>
 
             <View style={styles.chipsRow}>
-              <InfoChip text="1.8 km" />
-              <InfoChip text="6 min" />
-              <InfoChip text="REQ-1048" />
+              <InfoChip
+                text={
+                  routeDistanceKm !== null
+                    ? `${routeDistanceKm.toFixed(1)} km`
+                    : 'Calculating...'
+                }
+              />
+
+              <InfoChip
+                text={
+                  routeDurationMin !== null
+                    ? `${Math.ceil(routeDurationMin)} min`
+                    : 'Calculating...'
+                }
+              />
+
+              <InfoChip
+                text={tripDetails?.id ?? 'Loading...'}
+              />
             </View>
 
             {/* <View style={{ height: 17 }} /> */}

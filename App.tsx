@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { AppProvider } from './src/store';

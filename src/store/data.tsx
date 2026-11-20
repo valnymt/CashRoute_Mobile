@@ -6,10 +6,8 @@ import React, {
   useEffect,
 } from 'react';
 
-import {
-  NOTIFICATIONS,
-  TRIP_HISTORY,
-} from '../services/mockData';
+import { NOTIFICATIONS } from '../services/mockData';
+import { getTripHistory } from '../services/tripHistory';
 
 import { getMyAssignments } from '../services/assignment';
 
@@ -123,6 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [currentTrip, setCurrentTrip] = useState<TripData | null>(null);
+  const [tripHistory, setTripHistory] = useState<HistoryTrip[]>([]);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
@@ -158,8 +157,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsRefreshing(true);
     setAssignmentError(null);
 
-    try {
-      const assignments = await getMyAssignments();
+    const [assignmentResult, historyResult] = await Promise.allSettled([
+      getMyAssignments(),
+      getTripHistory(),
+    ]);
+
+    // Handle assignments
+    if (assignmentResult.status === 'fulfilled') {
+      const assignments = assignmentResult.value;
 
       const activeAssignments = assignments.filter(item =>
         ['assigned', 'reassigned', 'in_transit'].includes(
@@ -176,19 +181,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setCurrentTrip(null);
         setTeamMembers([]);
       }
-    } catch (error) {
-      console.error('Failed to load assignments:', error);
+    } else {
+      console.error('Failed to load assignments:', assignmentResult.reason);
 
       setAssignmentError(
-        error instanceof Error
-          ? error.message
+        assignmentResult.reason instanceof Error
+          ? assignmentResult.reason.message
           : 'Unable to load assignments. Please try again.',
       );
-    } finally {
-      setIsRefreshing(false);
     }
-  }, []);
 
+    // Handle trip history
+    if (historyResult.status === 'fulfilled') {
+      setTripHistory(historyResult.value);
+    } else {
+      console.error('Failed to load trip history:', historyResult.reason);
+    }
+
+    setIsRefreshing(false);
+  }, []);
   useEffect(() => {
     refreshData();
   }, [refreshData]);
@@ -207,7 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         notifications,
         unreadCount,
         teamMembers,
-        tripHistory: TRIP_HISTORY,
+        tripHistory,
         isRefreshing,
         assignmentError,
         advanceStage,
