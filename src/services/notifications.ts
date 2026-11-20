@@ -34,7 +34,7 @@ async function saveFcmTokenToBackend(fcmToken: string): Promise<void> {
 
 export async function getFcmDeviceToken(): Promise<string | null> {
     try {
-        const { getMessaging, getToken } = loadMessaging();
+        const { getMessaging, getToken, requestPermission, AuthorizationStatus } = loadMessaging();
 
         if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
             const permission = await PermissionsAndroid.request(
@@ -48,6 +48,10 @@ export async function getFcmDeviceToken(): Promise<string | null> {
         }
 
         const messaging = getMessaging();
+        if (Platform.OS === 'ios') {
+            const status = await requestPermission(messaging);
+            if (status !== AuthorizationStatus.AUTHORIZED && status !== AuthorizationStatus.PROVISIONAL) return null;
+        }
         const token = await getToken(messaging);
 
         console.log('FCM token retrieval successful:', !!token);
@@ -90,5 +94,53 @@ export function listenForFcmTokenRefresh(): (() => void) | undefined {
     } catch (error) {
         console.warn('Could not start the FCM token refresh listener:', error);
         return undefined;
+    }
+}
+
+export function listenForDeliveryNotifications(
+    onReceived: (id: string) => void,
+    onOpened: (id: string) => void,
+): (() => void) | undefined {
+    try {
+        const { getMessaging, onMessage, onNotificationOpenedApp, getInitialNotification } = loadMessaging();
+        const messaging = getMessaging();
+        let active = true;
+        const notify = (callback: (id: string) => void, id: unknown) => {
+            if (active && typeof id === 'string' && /^N-[0-9]+$/.test(id)) callback(id);
+        };
+        const unsubscribeMessage = onMessage(messaging, message => notify(onReceived, message.data?.notificationId));
+        const unsubscribeOpened = onNotificationOpenedApp(messaging, message => notify(onOpened, message.data?.notificationId));
+        void getInitialNotification(messaging)
+            .then(message => notify(onOpened, message?.data?.notificationId))
+            .catch(() => {});
+        return () => {
+            active = false;
+            unsubscribeMessage();
+            unsubscribeOpened();
+        };
+    } catch {
+        // The API inbox remains available when Firebase is unavailable.
+        return undefined;
+    }
+}
+
+export async function unregisterFcmToken(): Promise<void> {
+    try {
+        const { getMessaging, getToken, deleteToken } = loadMessaging();
+        const messaging = getMessaging();
+        const token = await getToken(messaging);
+        try {
+            const authToken = await getAuthToken();
+            if (authToken) {
+                await apiRequest('/device-tokens/current', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ token }),
+                }, authToken);
+            }
+        } finally {
+            await deleteToken(messaging);
+        }
+    } catch {
+        // Local logout must work even when the network or Firebase is unavailable.
     }
 }

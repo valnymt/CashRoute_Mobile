@@ -1,44 +1,23 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { AuraBackground, GlassCard, TopBar } from '../components';
 import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 
 interface NotificationsScreenProps {
   onBackClick: () => void;
+  onNotificationPress: (id: string) => void;
 }
 
 export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
-  onBackClick,
+  onBackClick, onNotificationPress,
 }) => {
-  const { notifications, markNotificationRead, markAllNotificationsRead, unreadCount } = useApp();
+  const { notifications, markAllNotificationsRead, unreadCount, refreshNotifications, notificationError, notificationsLoading } = useApp();
 
-  const anims = useRef(
-    notifications.map(() => ({
-      opacity: new Animated.Value(0),
-      translateY: new Animated.Value(24),
-    })),
-  ).current;
-
-  useEffect(() => {
-    const animations = anims.map((a, i) =>
-      Animated.parallel([
-        Animated.timing(a.opacity, {
-          toValue: 1,
-          duration: 350,
-          delay: i * 80,
-          useNativeDriver: true,
-        }),
-        Animated.timing(a.translateY, {
-          toValue: 0,
-          duration: 350,
-          delay: i * 80,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    Animated.stagger(0, animations).start();
-  }, [anims]);
+  useFocusEffect(React.useCallback(() => {
+    void refreshNotifications();
+  }, [refreshNotifications]));
 
   return (
     <AuraBackground>
@@ -51,42 +30,40 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           </TouchableOpacity>
         )}
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={notificationsLoading} onRefresh={refreshNotifications} tintColor={Colors.PrimaryGreen} />} >
           <View style={{ height: 12 }} />
-          {notifications.map((item, index) => (
-            <Animated.View
-              key={item.id}
-              style={{
-                opacity: anims[index]?.opacity ?? 1,
-                transform: [{ translateY: anims[index]?.translateY ?? 0 }],
-              }}>
-              <TouchableOpacity
+          {notificationError && <Text style={styles.notifDetail} accessibilityLiveRegion="polite">{notificationError} Pull down to retry.</Text>}
+          {!notificationError && !notificationsLoading && notifications.length === 0 && (
+            <Text style={styles.notifDetail}>Delivery assignments and team updates will appear here.</Text>
+          )}
+          {notifications.map(item => (
+              <TouchableOpacity key={item.id} accessibilityRole="button"
                 activeOpacity={0.8}
-                onPress={() => markNotificationRead(item.id)}>
+                onPress={() => onNotificationPress(item.id)}>
                 <GlassCard style={{ marginBottom: 12 }}>
                   <View style={styles.notifCard}>
                     <View
                       style={[
                         styles.dot,
-                        { backgroundColor: item.isNew ? Colors.PrimaryGreen : Colors.TextDim },
+                        { backgroundColor: !item.read ? Colors.PrimaryGreen : Colors.TextDim },
                       ]}
                     />
                     <View style={styles.notifContent}>
                       <Text style={styles.notifTitle}>{item.title}</Text>
-                      <Text style={styles.notifDetail}>{item.detail}</Text>
+                      <Text style={styles.notifDetail}>{item.body}</Text>
                       <Text
                         style={[
                           styles.notifTime,
-                          { color: item.isNew ? Colors.PrimaryGreen : Colors.TextDim },
+                          { color: !item.read ? Colors.PrimaryGreen : Colors.TextDim },
                         ]}>
-                        {item.time}
+                        {item.at ? new Date(item.at).toLocaleString() : null}
                       </Text>
                     </View>
-                    {item.isNew && <View style={styles.newBadge}><Text style={styles.newText}>NEW</Text></View>}
+                    {!item.read && <View style={styles.newBadge}><Text style={styles.newText}>NEW</Text></View>}
                   </View>
                 </GlassCard>
               </TouchableOpacity>
-            </Animated.View>
           ))}
         </ScrollView>
       </View>

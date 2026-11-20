@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Colors, Typography } from '../theme';
+import { NotificationDetailScreen } from '../screens/NotificationDetailScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppDialogProvider } from '../components/AppDialog';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   LoginScreen,
@@ -24,6 +27,7 @@ export type RootStackParamList = {
   Home: undefined;
   Profile: undefined;
   Notifications: undefined;
+  NotificationDetail: { id: string };
   RequestDetail: undefined;
   TripMapPickup: undefined;
   OtpPickup: { cashRequestId: number; currentLocation: Coordinates };
@@ -42,17 +46,28 @@ interface AppNavigationProps {
   isSignedIn: boolean;
   onLoginSuccess: () => void;
   onLogout: () => void;
+  pendingNotificationId: string | null;
+  onNotificationHandled: () => void;
+  foregroundNotificationId: string | null;
+  onDismissForegroundNotification: () => void;
 }
 
 export const AppNavigation: React.FC<AppNavigationProps> = ({
   isSignedIn,
   onLoginSuccess,
-  onLogout,
+  onLogout, pendingNotificationId, onNotificationHandled, foregroundNotificationId, onDismissForegroundNotification,
 }) => {
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+  const openPending = useCallback(() => {
+    if (!isSignedIn || !pendingNotificationId || !navigationRef.isReady()) return;
+    navigationRef.navigate('NotificationDetail', { id: pendingNotificationId });
+    onNotificationHandled();
+  }, [isSignedIn, pendingNotificationId, navigationRef, onNotificationHandled]);
+  useEffect(openPending, [openPending]);
   return (
     <SafeAreaProvider>
       <AppDialogProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef} onReady={openPending}>
           <Stack.Navigator
             screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
             initialRouteName={isSignedIn ? 'Home' : 'Login'}
@@ -84,7 +99,16 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
 
             <Stack.Screen name="Notifications">
               {({ navigation }) => (
-                <NotificationsScreen onBackClick={() => navigation.goBack()} />
+                <NotificationsScreen
+                  onBackClick={() => navigation.goBack()}
+                  onNotificationPress={id => navigation.navigate('NotificationDetail', { id })}
+                />
+              )}
+            </Stack.Screen>
+
+            <Stack.Screen name="NotificationDetail">
+              {({ navigation, route }) => (
+                <NotificationDetailScreen id={route.params.id} onBackClick={() => navigation.goBack()} />
               )}
             </Stack.Screen>
 
@@ -193,7 +217,35 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
             </Stack.Screen>
           </Stack.Navigator>
         </NavigationContainer>
+        {isSignedIn && foregroundNotificationId && (
+          <View style={styles.notice}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                if (navigationRef.isReady()) {
+                  navigationRef.navigate('NotificationDetail', { id: foregroundNotificationId });
+                  onDismissForegroundNotification();
+                }
+              }}
+              style={styles.noticeBody}
+            >
+              <Text style={styles.noticeTitle}>New delivery team update</Text>
+              <Text style={styles.noticeText}>Tap to view details</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Dismiss update" onPress={onDismissForegroundNotification} style={styles.dismiss}>
+              <Text style={styles.noticeText}>Dismiss</Text>
+            </Pressable>
+          </View>
+        )}
       </AppDialogProvider>
     </SafeAreaProvider>
   );
 };
+
+const styles = StyleSheet.create({
+  notice: { position: 'absolute', top: 52, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: Colors.PrimaryGreen, backgroundColor: '#2A1643', zIndex: 10, elevation: 8 },
+  noticeBody: { flex: 1, padding: 14 },
+  dismiss: { padding: 14 },
+  noticeTitle: { ...Typography.titleMedium, color: Colors.TextPrimary },
+  noticeText: { ...Typography.bodySmall, color: Colors.PrimaryGreen },
+});

@@ -91,7 +91,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
               <Text style={styles.subtitle}>Your delivery team assignments</Text>
             </View>
             <View style={styles.headerIcons}>
-              <TouchableOpacity onPress={onNotificationsPress} style={styles.bellContainer}>
+              <TouchableOpacity onPress={onNotificationsPress} style={styles.bellContainer} accessibilityRole="button" accessibilityLabel={unreadCount ? 'Notifications, ' + unreadCount + ' unread' : 'Notifications'}>
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9z"

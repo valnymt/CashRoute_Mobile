@@ -4,20 +4,20 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react';
 
-import { NOTIFICATIONS } from '../services/mockData';
-import { getTripHistory } from '../services/tripHistory';
+import { AppState as NativeAppState } from 'react-native';
 import {
-  getMessaging,
-  onMessage,
-} from '@react-native-firebase/messaging';
+  getNotifications, readNotification, readAllNotifications,
+} from '../services/notificationInbox';
+import type { DeliveryNotification } from '../services/notificationInbox';
+import { getTripHistory } from '../services/tripHistory';
 
 import { getMyAssignments } from '../services/assignment';
 
 import type {
   TripData,
-  NotificationData,
   HistoryTrip,
   TripStage,
   User,
@@ -31,7 +31,10 @@ interface AppState {
   currentTrip: TripData | null;
   upcomingTrip: TripData | null;
   tripStage: TripStage;
-  notifications: NotificationData[];
+  notifications: DeliveryNotification[];
+  notificationError: string | null;
+  notificationsLoading: boolean;
+  refreshNotifications: () => Promise<void>;
   unreadCount: number;
   tripHistory: HistoryTrip[];
   teamMembers: TeamMember[];
@@ -39,8 +42,8 @@ interface AppState {
   assignmentError: string | null;
 
   advanceStage: () => void;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   refreshData: () => Promise<void>;
   resetTrip: () => void;
 }
@@ -121,9 +124,13 @@ function mapTeamMembers(item: BackendAssignment): TeamMember[] {
 export const AppProvider: React.FC<{
   children: React.ReactNode;
   isSignedIn: boolean;
-}> = ({ children, isSignedIn }) => {
+  pushRevision?: number;
+}> = ({ children, isSignedIn, pushRevision = 0 }) => {
   const [tripStage, setTripStage] = useState<TripStage>('assigned');
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<DeliveryNotification[]>([]);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const notificationRevision = useRef(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [currentTrip, setCurrentTrip] = useState<TripData | null>(null);
@@ -138,7 +145,7 @@ export const AppProvider: React.FC<{
     role: 'Driver',
   };
 
-  const unreadCount = notifications.filter(n => n.isNew).length;
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const advanceStage = useCallback(() => {
     setTripStage(prev => {
@@ -149,15 +156,37 @@ export const AppProvider: React.FC<{
     });
   }, []);
 
-  const markNotificationRead = useCallback((id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, isNew: false } : n)),
-    );
+  const refreshNotifications = useCallback(async () => {
+    const revision = ++notificationRevision.current;
+    setNotificationsLoading(true);
+    try {
+      const items = await getNotifications();
+      if (revision === notificationRevision.current) {
+        setNotifications(items);
+        setNotificationError(null);
+      }
+    } catch {
+      if (revision === notificationRevision.current) setNotificationError('Unable to load notifications.');
+    } finally {
+      if (revision === notificationRevision.current) setNotificationsLoading(false);
+    }
   }, []);
 
-  const markAllNotificationsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, isNew: false })));
-  }, []);
+  const markNotificationRead = useCallback(async (id: string) => {
+    await readNotification(id);
+    setNotifications(items => items.map(item => item.id === id ? { ...item, read: true } : item));
+    void refreshNotifications();
+  }, [refreshNotifications]);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      await readAllNotifications();
+      setNotifications(items => items.map(item => ({ ...item, read: true })));
+      await refreshNotifications();
+    } catch {
+      setNotificationError('Unable to mark notifications as read.');
+    }
+  }, [refreshNotifications]);
 
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
@@ -207,17 +236,32 @@ export const AppProvider: React.FC<{
     setIsRefreshing(false);
   }, []);
   useEffect(() => {
-    refreshData();
     if (isSignedIn) {
-      refreshData();
+      void refreshData();
+      void refreshNotifications();
     }
-  }, [isSignedIn, refreshData]);
+  }, [isSignedIn, pushRevision, refreshData, refreshNotifications]);
 
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const subscription = NativeAppState.addEventListener('change', state => {
+      if (state === 'active') {
+        void refreshNotifications();
+        void refreshData();
+      }
+    });
+    const interval = setInterval(() => {
+      if (NativeAppState.currentState === 'active') void refreshNotifications();
+    }, 45000);
+    return () => {
+      subscription.remove();
+      clearInterval(interval);
+    };
+  }, [isSignedIn, refreshData, refreshNotifications]);
 
   const resetTrip = useCallback(() => {
     setTripStage('assigned');
   }, []);
-
 
   return (
     <AppContext.Provider
@@ -227,6 +271,9 @@ export const AppProvider: React.FC<{
         upcomingTrip: null,
         tripStage,
         notifications,
+        notificationError,
+        notificationsLoading,
+        refreshNotifications,
         unreadCount,
         teamMembers,
         tripHistory,

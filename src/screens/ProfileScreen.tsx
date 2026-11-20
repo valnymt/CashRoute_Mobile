@@ -18,6 +18,7 @@ import { Colors, Typography } from '../theme';
 //     UserProfile,
 // } from '../services/authStorage';
 import { removeAuthData } from '../services/authStorage';
+import { unregisterFcmToken } from '../services/notifications';
 
 import {
     getMyProfile,
@@ -105,6 +106,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         try {
                             setIsLoggingOut(true);
 
+                            await unregisterFcmToken();
                             await removeAuthData();
 
                             onLogout();
