@@ -30,6 +30,7 @@ interface TripLocation {
   address: string;
   latitude: number;
   longitude: number;
+  handoverRadius: number;
 }
 
 interface TripDetails {
@@ -92,6 +93,51 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     latitude: number;
     longitude: number;
   } | null>(null);
+
+  //for calculation of the handover radius
+  const getDistanceMeters = (
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number => {
+    const earthRadius = 6371000;
+
+    const toRadians = (degrees: number) =>
+      (degrees * Math.PI) / 180;
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) ** 2;
+
+    return earthRadius * 2 * Math.atan2(
+      Math.sqrt(a),
+      Math.sqrt(1 - a),
+    );
+  };
+
+  const distanceToDestination =
+    currentLocation && activeLocation
+      ? getDistanceMeters(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        activeLocation.latitude,
+        activeLocation.longitude,
+      )
+      : null;
+
+  const canArrive =
+    distanceToDestination !== null &&
+    activeLocation !== undefined &&
+    Number.isFinite(activeLocation.handoverRadius) &&
+    activeLocation.handoverRadius >= 0 &&
+    distanceToDestination <= activeLocation.handoverRadius;
+
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
 
   // Refs that the GPS watcher closure can safely access without re-subscribing.
@@ -355,6 +401,37 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     });
 
   }, [tripDetails]);
+  //for arrival pickup dropoff button 
+  const handleArrivedPress = () => {
+    if (!currentLocation || !activeLocation) {
+      showDialog(
+        'Location Not Ready',
+        'Please wait for your current location and destination to load.',
+      );
+      return;
+    }
+
+    if (!canArrive) {
+      showDialog(
+        isPickup ? 'Not at Pickup Location' : 'Not at Drop-off Location',
+        `Please go to the ${isPickup ? 'pickup' : 'drop-off'} location before continuing.`,
+      );
+      return;
+    }
+
+    if (
+      !tripDetails?.cashRequestId ||
+      !Number.isInteger(tripDetails.cashRequestId)
+    ) {
+      showDialog(
+        'Trip Not Ready',
+        'The trip response does not contain a valid cash request database ID.',
+      );
+      return;
+    }
+
+    onArrived(tripDetails.cashRequestId, currentLocation);
+  };
   return (
     <View style={styles.container}>
       <Map
@@ -397,7 +474,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         {tripDetails?.pickup && (
           <Marker lngLat={[tripDetails.pickup.longitude, tripDetails.pickup.latitude]}>
             <View style={styles.pickupMarker}>
-              <Text style={[styles.markerText, styles.pickupMarkerText]}>A</Text>
+              <Text style={[styles.markerText, styles.pickupMarkerText]}>P</Text>
             </View>
           </Marker>
         )}
@@ -405,7 +482,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         {tripDetails?.dropoff && (
           <Marker lngLat={[tripDetails.dropoff.longitude, tripDetails.dropoff.latitude]}>
             <View style={styles.dropoffMarker}>
-              <Text style={styles.markerText}>B</Text>
+              <Text style={styles.markerText}>D</Text>
             </View>
           </Marker>
         )}
@@ -459,23 +536,11 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             {tripReference && <InfoChip text={tripReference} />}
           </View>
 
+          {/* button */}
           <View style={{ height: 12 }} />
           <PrimaryButton
             text={arrivedText}
-            onPress={() => {
-              if (
-                !tripDetails?.cashRequestId ||
-                !Number.isInteger(tripDetails.cashRequestId)
-              ) {
-                showDialog(
-                  'Trip Not Ready',
-                  'The trip response does not contain a valid cash request database ID. Please refresh the trip.',
-                );
-                return;
-              }
-
-              onArrived(tripDetails.cashRequestId, currentLocation);
-            }}
+            onPress={handleArrivedPress}
           />
 
           <Text style={styles.shareNote}>
