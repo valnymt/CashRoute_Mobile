@@ -96,13 +96,13 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
       }
 
       // Accept the real assignment through Laravel.
-      await apiRequest(
-        `/requests/${currentTrip.id}/accept`,
-        {
-          method: 'POST',
-        },
+      const result = await apiRequest(
+        `/requests/${encodeURIComponent(currentTrip.id)}/accept`,
+        { method: 'POST' },
         token,
       );
+
+      console.log('Accept response:', result);
 
       // Navigate only after the backend confirms acceptance.
       onStartTrip();
@@ -218,7 +218,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
                       <View style={styles.markerContainer}>
                         <View
                           style={[styles.routeMarker, { backgroundColor: Colors.PrimaryGreen }]}>
-                          <Text style={styles.markerLetter}>A</Text>
+                          <Text style={styles.markerLetter}>P</Text>
                         </View>
                       </View>
                       <View style={styles.routeTextContainer}>
@@ -236,7 +236,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
                       <View style={styles.markerContainer}>
                         <View
                           style={[styles.routeMarker, { backgroundColor: Colors.PurpleAccent }]}>
-                          <Text style={styles.markerLetter}>B</Text>
+                          <Text style={styles.markerLetter}>D</Text>
                         </View>
                       </View>
                       <View style={styles.routeTextContainer}>

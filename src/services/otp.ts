@@ -57,7 +57,7 @@ export async function verifyHandoverOtp(
 
     const token = await requireToken();
 
-    return apiRequest<VerifyOtpResponse>(
+    const response = await apiRequest<VerifyOtpResponse>(
         '/otps/verify',
         {
             method: 'POST',
@@ -70,4 +70,7 @@ export async function verifyHandoverOtp(
         },
         token,
     );
+
+    console.log('[OTP] Verify response:', response);
+    return response;
 }

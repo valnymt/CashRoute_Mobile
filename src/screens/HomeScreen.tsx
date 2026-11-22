@@ -18,7 +18,7 @@ import { getUser, UserProfile } from '../services/authStorage';
 
 interface HomeScreenProps {
   onRequestPress: () => void;
-  onTripMapPress: () => void;
+  onTripMapPress: (status: string) => void;
   onNotificationsPress?: () => void;
   onHistoryPress?: () => void;
   onProfilePress?: () => void;
@@ -28,7 +28,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
   const { currentTrip, assignmentError, unreadCount, isRefreshing, refreshData } = useApp();
   const pulseOpacity = usePulse();
-  const openCurrentTrip = currentTrip?.acceptedAt ? onTripMapPress : onRequestPress;
+  const hasAutoOpenedTrip = useRef(false);
+
+  const openCurrentTrip = () => {
+    if (currentTrip) {
+      onTripMapPress(currentTrip.status);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !hasAutoOpenedTrip.current &&
+      currentTrip &&
+      ['Assigned', 'In Transit'].includes(currentTrip.status)
+    ) {
+      hasAutoOpenedTrip.current = true;
+      onTripMapPress(currentTrip.status);
+    }
+  }, [currentTrip, onTripMapPress]);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bannerAnim = useRef(new Animated.Value(0)).current;
@@ -313,7 +330,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
           onSelect={tab => {
             setSelectedTab(tab);
             if (tab === 'history') onHistoryPress?.();
-            if (tab === 'liveTrip') onTripMapPress();
+            if (tab === 'liveTrip') openCurrentTrip();
           }}
         />
       </View>

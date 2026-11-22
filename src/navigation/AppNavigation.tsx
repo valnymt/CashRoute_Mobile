@@ -80,7 +80,13 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
               {({ navigation }) => (
                 <HomeScreen
                   onRequestPress={() => navigation.navigate('RequestDetail')}
-                  onTripMapPress={() => navigation.navigate('TripMapPickup')}
+                  onTripMapPress={status => {
+                    if (status === 'In Transit') {
+                      navigation.navigate('TripMapDropOff');
+                    } else if (status === 'Assigned') {
+                      navigation.navigate('TripMapPickup');
+                    }
+                  }}
                   onProfilePress={() => navigation.navigate('Profile')}
                   onNotificationsPress={() => navigation.navigate('Notifications')}
                   onHistoryPress={() => navigation.navigate('TripHistory')}
