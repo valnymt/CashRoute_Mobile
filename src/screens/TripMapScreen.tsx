@@ -147,6 +147,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   const hasPermissionRef = useRef(false);
   const backgroundTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef(AppState.currentState);
+  const lastLocationSentAtRef = useRef(0);
 
   // ---------------------------------------------------------------
   // 1. Fetch trip details
@@ -238,10 +239,47 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       watchIdRef.current = Geolocation.watchPosition(
         position => {
           if (!isMountedRef.current) return;
-          const { latitude, longitude } = position.coords;
+
+          const { latitude, longitude, accuracy } = position.coords;
+
           setCurrentLocation({ latitude, longitude });
           setGpsUpdateCount(count => count + 1);
           console.log('[GPS] Updated GPS:', latitude, longitude);
+
+          // Send a location ping at most once every 10 seconds.
+          const nowMs = Date.now();
+          if (!tripReference || nowMs - lastLocationSentAtRef.current < 10_000) {
+            return;
+          }
+
+          lastLocationSentAtRef.current = nowMs;
+
+          void (async () => {
+            try {
+              const token = await getToken();
+              if (!token) return;
+              console.log('[GPS] Sending location ping', {
+                tripReference,
+                latitude,
+                longitude,
+              });
+              await apiRequest(
+                `/trips/${tripReference}/location`,
+                {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    latitude,
+                    longitude,
+                    accuracy: accuracy ?? null,
+                  }),
+                },
+                token,
+              );
+              console.log('[GPS] Backend accepted location ping');
+            } catch (error) {
+              console.error('[GPS] Failed to save location:', error);
+            }
+          })();
         },
         error => {
           console.log('[GPS] ERROR:', error.code, error.message);

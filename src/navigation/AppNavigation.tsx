@@ -73,7 +73,17 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
             initialRouteName={isSignedIn ? 'Home' : 'Login'}
           >
             <Stack.Screen name="Login">
-              {() => <LoginScreen onLoginSuccess={onLoginSuccess} />}
+              {({ navigation }) => (
+                <LoginScreen
+                  onLoginSuccess={() => {
+                    onLoginSuccess();
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Home' }],
+                    });
+                  }}
+                />
+              )}
             </Stack.Screen>
 
             <Stack.Screen name="Home">

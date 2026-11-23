@@ -61,12 +61,15 @@ const STAGE_ORDER: TripStage[] = [
   'proofSubmitted',
   'completed',
 ];
+const normalizeStatus = (status: string) => status.toLowerCase().replace(/[\s_]+/g, '_');
 
 function mapAssignmentToTrip(item: BackendAssignment): TripData {
+  const normalizedStatus = normalizeStatus(item.status);
+
   const status =
-    item.status.toLowerCase() === 'in_transit'
+    normalizedStatus === 'in_transit'
       ? 'In Transit'
-      : item.status.toLowerCase() === 'completed'
+      : normalizedStatus === 'completed'
         ? 'Completed'
         : 'Assigned';
 
@@ -200,10 +203,19 @@ export const AppProvider: React.FC<{
     // Handle assignments
     if (assignmentResult.status === 'fulfilled') {
       const assignments = assignmentResult.value;
+      console.log(
+        '[Assignments]',
+        assignments.map(item => ({
+          reference: item.reference,
+          status: item.status,
+          cash_request_id: item.cash_request_id,
+          trip_id: item.trip_id,
+        })),
+      );
 
       const activeAssignments = assignments.filter(item =>
         ['assigned', 'reassigned', 'in_transit'].includes(
-          item.status.toLowerCase(),
+          normalizeStatus(item.status),
         ),
       );
 
