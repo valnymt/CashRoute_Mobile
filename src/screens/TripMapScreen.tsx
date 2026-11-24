@@ -138,7 +138,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     activeLocation.handoverRadius >= 0 &&
     distanceToDestination <= activeLocation.handoverRadius;
 
-  const BYPASS_ARRIVAL_RADIUS_FOR_TESTING = __DEV__;
+  // const BYPASS_ARRIVAL_RADIUS_FOR_TESTING = __DEV__;
 
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
 
@@ -363,7 +363,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       `https://router.project-osrm.org${path}`,
       `https://routing.openstreetmap.de/routed-car${path}`,
     ];
-    if (__DEV__ && Platform.OS === 'android') {
+    if (Platform.OS === 'android') {
       routeUrls.unshift(
         `http://127.0.0.1:8081/cashroute-dev/road-route?coordinates=${encodeURIComponent(coordinates)}`,
       );
@@ -451,7 +451,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       return;
     }
 
-    if (!canArrive && !BYPASS_ARRIVAL_RADIUS_FOR_TESTING) {
+    if (!canArrive) {
       showDialog(
         isPickup ? 'Not at Pickup Location' : 'Not at Drop-off Location',
         `Please go to the ${isPickup ? 'pickup' : 'drop-off'} location before continuing.`,

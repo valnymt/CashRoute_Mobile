@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, Alert } from 'react-native';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton, } from '../components';
 import { useAppDialog } from '../components/AppDialog';
 import { launchCamera, launchImageLibrary, type ImagePickerResponse, } from 'react-native-image-picker';
@@ -9,8 +9,9 @@ import { useApp } from '../store/data';
 
 interface ProofOfDeliveryScreenProps {
   onBackClick: () => void;
-  onSubmitProof: (proof: {
+  onSubmitProof: (data: {
     photoUri: string;
+    confirmedAmount: number;
     signatureDataUrl: string | null;
   }) => Promise<void>;
 }
@@ -97,13 +98,28 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
     if (!canSubmit || isSubmitting) return;
 
     setIsSubmitting(true);
+
     try {
+      const rawAmount = String(currentTrip.amount).replace(/,/g, '').trim();
+      const confirmedAmount = Number(rawAmount);
+
+      if (!Number.isFinite(confirmedAmount) || confirmedAmount < 0) {
+        Alert.alert('Invalid amount', 'The trip amount is not a valid number.');
+        return;
+      }
+
       await onSubmitProof({
         photoUri: photoUri!,
+        confirmedAmount,
         signatureDataUrl,
       });
     } catch (error) {
-      Alert.alert('Submission failed', 'Could not submit proof of delivery.');
+      Alert.alert(
+        'Submission failed',
+        error instanceof Error
+          ? error.message
+          : 'Could not submit proof of delivery.',
+      );
     } finally {
       setIsSubmitting(false);
     }
