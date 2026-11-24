@@ -138,6 +138,8 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     activeLocation.handoverRadius >= 0 &&
     distanceToDestination <= activeLocation.handoverRadius;
 
+  const BYPASS_ARRIVAL_RADIUS_FOR_TESTING = __DEV__;
+
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
 
   // Refs that the GPS watcher closure can safely access without re-subscribing.
@@ -449,7 +451,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       return;
     }
 
-    if (!canArrive) {
+    if (!canArrive && !BYPASS_ARRIVAL_RADIUS_FOR_TESTING) {
       showDialog(
         isPickup ? 'Not at Pickup Location' : 'Not at Drop-off Location',
         `Please go to the ${isPickup ? 'pickup' : 'drop-off'} location before continuing.`,

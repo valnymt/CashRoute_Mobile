@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
-import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image } from 'react-native';
+import { AuraBackground, GlassCard, TopBar, PrimaryButton, } from '../components';
+import { useAppDialog } from '../components/AppDialog';
+import { launchCamera, launchImageLibrary, type ImagePickerResponse, } from 'react-native-image-picker';
+import SignatureCanvas from 'react-native-signature-canvas';
 import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
-import { useAnimatedMount } from '../hooks/useAnimatedMount';
 
 interface ProofOfDeliveryScreenProps {
   onBackClick: () => void;
-  onSubmitProof: () => void;
+  onSubmitProof: (proof: {
+    photoUri: string;
+    signatureDataUrl: string | null;
+  }) => Promise<void>;
 }
 
 export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
@@ -15,24 +20,93 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
   onSubmitProof,
 }) => {
   const { currentTrip } = useApp();
+
   const [confirmed, setConfirmed] = useState(false);
-  const [photoTaken, setPhotoTaken] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const card1Anim = useAnimatedMount(0, 350);
-  const card2Anim = useAnimatedMount(80, 350);
-  const card3Anim = useAnimatedMount(160, 350);
-  const card4Anim = useAnimatedMount(240, 350);
+  const signatureRef = useRef<any>(null);
 
-  const canSubmit = confirmed && photoTaken;
+  const canSubmit = confirmed && !!photoUri;
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
+  const handleImagePickerResponse = (response: ImagePickerResponse) => {
+    if (response.didCancel) return;
+
+    if (response.errorCode) {
+      Alert.alert(
+        'Photo error',
+        response.errorMessage ?? 'Could not select the photo.',
+      );
+      return;
+    }
+
+    const uri = response.assets?.[0]?.uri;
+    if (uri) setPhotoUri(uri);
+  };
+
+  const takePhoto = () => {
+    launchCamera(
+      {
+        mediaType: 'photo',
+        cameraType: 'back',
+        saveToPhotos: true,
+      },
+      handleImagePickerResponse,
+    );
+  };
+
+  const choosePhoto = () => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+        selectionLimit: 1,
+      },
+      handleImagePickerResponse,
+    );
+  };
+
+  const chooseSignatureImage = () => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+        selectionLimit: 1,
+      },
+      (response) => {
+        if (response.didCancel) return;
+
+        if (response.errorCode) {
+          Alert.alert(
+            'Signature image error',
+            response.errorMessage ?? 'Could not select the image.',
+          );
+          return;
+        }
+
+        const uri = response.assets?.[0]?.uri;
+        if (uri) setSignatureDataUrl(uri);
+      },
+    );
+  };
+
+  const handleSignatureOK = (dataUrl: string) => {
+    setSignatureDataUrl(dataUrl);
+  };
+
+  const handleSubmit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      await onSubmitProof({
+        photoUri: photoUri!,
+        signatureDataUrl,
+      });
+    } catch (error) {
+      Alert.alert('Submission failed', 'Could not submit proof of delivery.');
+    } finally {
       setIsSubmitting(false);
-      onSubmitProof();
-    }, 1200);
+    }
   };
 
   if (!currentTrip) {
@@ -43,6 +117,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
       </AuraBackground>
     );
   }
+  const { showDialog } = useAppDialog();
 
   return (
     <AuraBackground>
@@ -52,7 +127,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={{ height: 12 }} />
 
-          <Animated.View style={card1Anim}>
+          <View style={styles.card}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <Text style={styles.greenLabel}>CONFIRM RECEIVED AMOUNT</Text>
@@ -70,7 +145,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                 </TouchableOpacity>
               </View>
             </GlassCard>
-          </Animated.View>
+          </View>
 
           <View style={{ height: 12 }} />
 
@@ -88,7 +163,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
 
           <View style={{ height: 12 }} />
 
-          <Animated.View style={card3Anim}>
+          <View style={styles.card}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <View style={styles.headerRow}>
@@ -97,32 +172,39 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                     <Text style={styles.requiredText}>Required</Text>
                   </View>
                 </View>
+
+                {/* photo to upload */}
                 <View style={{ height: 12 }} />
                 <View style={styles.photoRow}>
-                  {photoTaken ? (
-                    <View style={styles.photo1}>
-                      <Text style={styles.photo1Text}>Photo 1 ✓</Text>
-                    </View>
+                  {photoUri ? (
+                    <Image source={{ uri: photoUri }} style={styles.photoPreview} />
                   ) : (
                     <TouchableOpacity
                       style={styles.photo2}
-                      onPress={() => setPhotoTaken(true)}
+                      onPress={takePhoto}
                       activeOpacity={0.7}>
                       <Text style={styles.cameraIcon}>📷</Text>
                       <Text style={styles.addPhotoText}>Take photo</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={styles.photo2} activeOpacity={0.7}>
-                    <Text style={styles.addPhotoText}>+ Add photo</Text>
+
+                  <TouchableOpacity
+                    style={styles.photo2}
+                    onPress={choosePhoto}
+                    activeOpacity={0.7}>
+                    <Text style={styles.addPhotoText}>
+                      {photoUri ? 'Choose another' : '+ Gallery'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
+
               </View>
             </GlassCard>
-          </Animated.View>
+          </View>
 
           <View style={{ height: 12 }} />
 
-          <Animated.View style={card4Anim}>
+          <View style={styles.card}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <View style={styles.headerRow}>
@@ -131,13 +213,51 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                     <Text style={styles.optionalText}>Optional</Text>
                   </View>
                 </View>
+
+                {/* signature box */}
                 <View style={{ height: 12 }} />
                 <View style={styles.signatureBox}>
-                  <Text style={styles.signText}>Sign here</Text>
+                  <SignatureCanvas
+                    ref={signatureRef}
+                    onOK={handleSignatureOK}
+                    onEmpty={() =>
+                      showDialog(
+                        'Signature required',
+                        'Please draw a signature first.',
+                      )
+                    }
+                    descriptionText="Sign above"
+                    clearText="Clear"
+                    confirmText="Use signature"
+                    webStyle={`
+                      .m-signature-pad { box-shadow: none; border: none; }
+                      .m-signature-pad--body { border: none; }
+                      .m-signature-pad--footer { display: flex; }
+                      body, html { width: 100%; height: 100%; }
+                    `}
+                  />
                 </View>
+
+                <View style={styles.signatureActions}>
+                  <TouchableOpacity
+                    style={styles.signatureButton}
+                    onPress={() => signatureRef.current?.readSignature()}>
+                    <Text style={styles.addPhotoText}>Use drawn signature</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.signatureButton}
+                    onPress={chooseSignatureImage}>
+                    <Text style={styles.addPhotoText}>Upload signature image</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {signatureDataUrl && (
+                  <Text style={styles.signatureSavedText}>Signature added ✓</Text>
+                )}
               </View>
             </GlassCard>
-          </Animated.View>
+          </View>
 
           <View style={{ height: 24 }} />
         </ScrollView>
@@ -172,6 +292,37 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     padding: 20,
+  },
+  photoPreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 16,
+    resizeMode: 'cover',
+  },
+  signatureActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  signatureButton: {
+    borderWidth: 1,
+    borderColor: Colors.CardBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  signatureSavedText: {
+    ...Typography.bodySmall,
+    color: Colors.PrimaryGreen,
+    marginTop: 8,
+  },
+  signatureBox: {
+    height: 180,
+    borderWidth: 1,
+    borderColor: Colors.CardBorder,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   greenLabel: {
     ...Typography.labelMedium,
@@ -296,15 +447,6 @@ const styles = StyleSheet.create({
   addPhotoText: {
     ...Typography.bodySmall,
     color: Colors.TextSecondary,
-  },
-  signatureBox: {
-    height: 80,
-    borderWidth: 1,
-    borderColor: Colors.CardBorder,
-    borderRadius: 12,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   signText: {
     ...Typography.bodyMedium,
