@@ -105,6 +105,16 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   const [routeGeometry, setRouteGeometry] = useState<RouteGeometry | null>(null);
   const [routeUnavailable, setRouteUnavailable] = useState(false);
   const [routeRetry, setRouteRetry] = useState(0);
+  const [routeOrigin, setRouteOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [routePing, setRoutePing] = useState(0);
+  const [gpsUploadFailed, setGpsUploadFailed] = useState(false);
+  const lastRouteSample = useRef(0);
+
+  useEffect(() => {
+    lastRouteSample.current = 0;
+    setRouteOrigin(null);
+    setGpsUploadFailed(false);
+  }, [tripReference, isPickup]);
   const [routeMetrics, setRouteMetrics] = useState<{ distanceKm: number; durationMin: number } | null>(null);
   const stepText = isPickup ? 'STEP 1 OF 2 · PICKUP' : 'STEP 2 OF 2 · DROP-OFF';
   const arrivedText = isPickup ? 'Arrived at Pickup' : 'Arrived at Drop-off';
@@ -271,6 +281,13 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           // Send a location ping at most once every 10 seconds.
           const activeTripReference = uploadTripRef.current;
           const nowMs = Date.now();
+          if (isPickup && nowMs - lastRouteSample.current >= 8000) {
+            lastRouteSample.current = nowMs;
+            setRouteOrigin(previous => {
+              const next = { latitude: Number(latitude.toFixed(5)), longitude: Number(longitude.toFixed(5)) };
+              return previous?.latitude === next.latitude && previous.longitude === next.longitude ? previous : next;
+            });
+          }
           if (!activeTripReference || nowMs - lastLocationSentAtRef.current < 10_000) {
             return;
           }
@@ -298,7 +315,10 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
                 },
                 token,
               );
-              console.log('[GPS] Backend accepted location ping');
+              if (uploadTripRef.current === activeTripReference) {
+                setGpsUploadFailed(false);
+                setRoutePing(value => value + 1);
+              }
             } catch (error) {
               if (error instanceof ApiError && error.status === 409) {
                 if (uploadTripRef.current === activeTripReference) {
@@ -306,6 +326,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
                 }
                 return;
               }
+              if (uploadTripRef.current === activeTripReference) setGpsUploadFailed(true);
               console.warn('[GPS] Failed to save location:', error);
             }
           })();
@@ -328,7 +349,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     } finally {
       isStartingRef.current = false;
     }
-  }, [showDialog, refreshData]);
+  }, [showDialog, refreshData, isPickup]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -373,72 +394,34 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     };
   }, [startLocationTracking, stopLocationTracking]);
 
-  // ---------------------------------------------------------------
-  // 3. Fetch road route from OSRM
-  // ---------------------------------------------------------------
+  // Pickup uses a local GPS sample. During delivery both apps route from the
+  // same position last saved by Laravel.
   useEffect(() => {
     setRouteGeometry(null);
     setRouteMetrics(null);
     setRouteUnavailable(false);
-    if (!tripDetails?.pickup || !tripDetails?.dropoff) return;
+    if (!tripReference || !isFocused || !tripDetails || (isPickup && !routeOrigin)) return;
 
-    const { pickup, dropoff } = tripDetails;
-    const coordinates =
-      `${pickup.longitude},${pickup.latitude};${dropoff.longitude},${dropoff.latitude}`;
-    const path = `/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
-    const routeUrls = [
-      `https://router.project-osrm.org${path}`,
-      `https://routing.openstreetmap.de/routed-car${path}`,
-    ];
-    if (Platform.OS === 'android') {
-      routeUrls.unshift(
-        `http://127.0.0.1:8081/cashroute-dev/road-route?coordinates=${encodeURIComponent(coordinates)}`,
-      );
-    }
-    let cancelled = false;
-    let controller: AbortController | undefined;
-
-    const fetchRoadRoute = async () => {
-      for (const routeUrl of routeUrls) {
-        if (cancelled) return;
-        const request = new AbortController();
-        controller = request;
-        const timeout = setTimeout(() => request.abort(), 8000);
-
-        try {
-          const response = await fetch(routeUrl, { signal: request.signal });
-          const result = await response.json();
-          if (cancelled) return;
-
-          if (result.code === 'NoRoute' || result.code === 'NoSegment') {
-            break;
-          }
-
-          const route = result.routes?.[0];
-          const geometry = route?.geometry;
-          if (response.ok && result.code === 'Ok' && geometry?.type === 'LineString') {
-            setRouteGeometry(geometry);
-            if (Number.isFinite(route.distance) && Number.isFinite(route.duration)) {
-              setRouteMetrics({ distanceKm: route.distance / 1000, durationMin: route.duration / 60 });
-            }
-            return;
-          }
-        } catch {
-          // Try the alternate server address if the request fails.
-        } finally {
-          clearTimeout(timeout);
-        }
+    const controller = new AbortController();
+    const query = isPickup && routeOrigin
+      ? '?latitude=' + routeOrigin.latitude + '&longitude=' + routeOrigin.longitude
+      : '';
+    const loadRoute = async () => {
+      try {
+        const { data } = await apiRequest<{
+          data: { geometry: RouteGeometry; distance: number; duration: number } | null;
+        }>('/trips/' + encodeURIComponent(tripReference) + '/route' + query, { signal: controller.signal });
+        if (controller.signal.aborted || !data) return;
+        setRouteGeometry(data.geometry);
+        setRouteMetrics({ distanceKm: data.distance / 1000, durationMin: data.duration / 60 });
+      } catch {
+        if (!controller.signal.aborted) setRouteUnavailable(true);
       }
-
-      if (!cancelled) setRouteUnavailable(true);
     };
+    void loadRoute();
+    return () => controller.abort();
+  }, [tripReference, tripDetails, isFocused, isPickup, routeOrigin, routePing, routeRetry]);
 
-    fetchRoadRoute();
-    return () => {
-      cancelled = true;
-      controller?.abort();
-    };
-  }, [tripDetails, routeRetry]);
 
   // ---------------------------------------------------------------
   // 4. Center camera on the trip bounds when details load
@@ -625,7 +608,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         </TouchableOpacity>
         <View style={styles.locationBadge}>
           <View style={styles.greenDot} />
-          <Text style={styles.locationText}>{currentLocation ? (uploadTripReference ? 'Location sharing on' : 'GPS on device') : 'Waiting for GPS'}</Text>
+          <Text style={styles.locationText}>{currentLocation ? (uploadTripReference ? (gpsUploadFailed ? 'GPS upload failed' : 'Location sharing on') : 'GPS on device') : 'Waiting for GPS'}</Text>
         </View>
       </View>
 
