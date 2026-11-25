@@ -23,7 +23,7 @@ export async function apiRequest<T>(
         ...options,
         headers: {
             Accept: 'application/json',
-            'Content-Type': 'application/json',
+            ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
             ...(authToken
                 ? { Authorization: `Bearer ${authToken}` }
                 : {}),
