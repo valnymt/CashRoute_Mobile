@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -27,6 +28,11 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMapPress, onNotificationsPress, onHistoryPress, onProfilePress, }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
   const { currentTrip, assignmentError, unreadCount, isRefreshing, refreshData } = useApp();
+  useFocusEffect(
+    useCallback(() => {
+      setSelectedTab('assignments');
+    }, [])
+  );
   const pulseOpacity = usePulse();
   const hasAutoOpenedTrip = useRef(false);
 

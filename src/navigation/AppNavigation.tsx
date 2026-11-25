@@ -179,7 +179,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
               {({ navigation }) => (
                 <TripMapScreen
                   isPickup={false}
-                  onBackClick={() => navigation.goBack()}
+                  onBackClick={() => navigation.navigate('Home')}
                   onArrived={(cashRequestId, currentLocation) =>
                     navigation.navigate('OtpDropOff', { cashRequestId, currentLocation })
                   }
