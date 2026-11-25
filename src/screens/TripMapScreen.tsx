@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Linking,
   PermissionsAndroid,
   Platform,
   AppState,
@@ -24,6 +25,8 @@ import { useApp } from '../store/data';
 // This prevents transient state changes (permission dialogs, floating windows,
 // MockLoc overlays, etc.) from killing the watcher.
 const BACKGROUND_STOP_DELAY_MS = 8000;
+// Keep the three colors in sync with the admin portal LiveMap.
+const MAP_COLORS = { route: '#2563eb', pickup: '#15803d', dropoff: '#dc2626' };
 
 interface TripLocation {
   name: string;
@@ -32,6 +35,8 @@ interface TripLocation {
   latitude: number;
   longitude: number;
   handoverRadius: number;
+  contactName?: string | null;
+  contactPhone?: string | null;
 }
 
 interface TripDetails {
@@ -91,6 +96,10 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
 
   const [tripDetails, setTripDetails] = useState<TripDetails | null>(null);
   const activeLocation = isPickup ? tripDetails?.pickup : tripDetails?.dropoff;
+  const [selectedStop, setSelectedStop] = useState<'pickup' | 'dropoff' | null>(null);
+  const selectedLocation = selectedStop ? tripDetails?.[selectedStop] : null;
+  const selectedPhone = selectedLocation?.contactPhone?.replace(/[^+\d]/g, '');
+  useEffect(() => setSelectedStop(null), [tripReference, isPickup]);
   const locationName = activeLocation?.name ?? 'Loading destination...';
   const address = activeLocation?.address ?? '';
   const [routeGeometry, setRouteGeometry] = useState<RouteGeometry | null>(null);
@@ -151,7 +160,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
 
   // const BYPASS_ARRIVAL_RADIUS_FOR_TESTING = __DEV__;
 
-  const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
+
 
   // Refs that the GPS watcher closure can safely access without re-subscribing.
   const watchIdRef = useRef<number | null>(null);
@@ -256,7 +265,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           const { latitude, longitude, accuracy } = position.coords;
 
           setCurrentLocation({ latitude, longitude });
-          setGpsUpdateCount(count => count + 1);
+
           console.log('[GPS] Updated GPS:', latitude, longitude);
 
           // Send a location ping at most once every 10 seconds.
@@ -545,22 +554,26 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             <Layer
               id="trip-route-line"
               type="line"
-              paint={{ 'line-color': Colors.PurpleAccent, 'line-width': 5 }}
+              paint={{ 'line-color': MAP_COLORS.route, 'line-width': 5 }}
               layout={{ 'line-cap': 'round', 'line-join': 'round' }}
             />
           </GeoJSONSource>
         )}
 
         {tripDetails?.pickup && (
-          <Marker lngLat={[tripDetails.pickup.longitude, tripDetails.pickup.latitude]}>
+          <Marker lngLat={[tripDetails.pickup.longitude, tripDetails.pickup.latitude]}
+            accessibilityRole="button" accessibilityLabel={'Pickup: ' + tripDetails.pickup.name}
+            onPress={() => setSelectedStop(stop => stop === 'pickup' ? null : 'pickup')}>
             <View style={styles.pickupMarker}>
-              <Text style={[styles.markerText, styles.pickupMarkerText]}>P</Text>
+              <Text style={styles.markerText}>P</Text>
             </View>
           </Marker>
         )}
 
         {tripDetails?.dropoff && (
-          <Marker lngLat={[tripDetails.dropoff.longitude, tripDetails.dropoff.latitude]}>
+          <Marker lngLat={[tripDetails.dropoff.longitude, tripDetails.dropoff.latitude]}
+            accessibilityRole="button" accessibilityLabel={'Drop-off: ' + tripDetails.dropoff.name}
+            onPress={() => setSelectedStop(stop => stop === 'dropoff' ? null : 'dropoff')}>
             <View style={styles.dropoffMarker}>
               <Text style={styles.markerText}>D</Text>
             </View>
@@ -574,13 +587,37 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             </View>
           </Marker>
         )}
+        {selectedLocation && (
+          <Marker
+            key={selectedStop}
+            lngLat={[selectedLocation.longitude, selectedLocation.latitude]}
+            anchor="bottom"
+            offset={[0, -20]}>
+            <View style={styles.pinPopup}>
+              <View style={styles.popupHeader}>
+                <Text style={styles.popupLabel}>{selectedStop === 'pickup' ? 'Pickup' : 'Drop-off'}</Text>
+                <TouchableOpacity style={styles.popupClose} accessibilityRole="button"
+                  accessibilityLabel="Close stop details" onPress={() => setSelectedStop(null)}>
+                  <Text style={styles.popupTitle}>×</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.popupTitle}>{selectedLocation.name}</Text>
+              <Text style={styles.popupBody}>{selectedLocation.address}</Text>
+              {!!selectedLocation.contactName && <Text style={styles.popupBody}>{selectedLocation.contactName}</Text>}
+              {selectedPhone && /^\+?\d+$/.test(selectedPhone) && (
+                <TouchableOpacity style={styles.stopAction} accessibilityRole="button"
+                  onPress={() => void Linking.openURL('tel:' + selectedPhone).catch(() =>
+                    showDialog('Unable to open dialer', selectedLocation.contactPhone ?? ''))}>
+                  <Text style={styles.stopActionText}>Call {selectedLocation.contactPhone}</Text>
+                </TouchableOpacity>
+              )}
+              <View pointerEvents="none" style={styles.popupTip} />
+            </View>
+          </Marker>
+        )}
       </Map>
 
-      <View style={styles.debugOverlay}>
-        <Text style={styles.debugText}>GPS Updates: {gpsUpdateCount}</Text>
-        <Text style={styles.debugText}>Lat: {currentLocation?.latitude}</Text>
-        <Text style={styles.debugText}>Lng: {currentLocation?.longitude}</Text>
-      </View>
+
 
       <View style={styles.topBar}>
         <TouchableOpacity onPress={onBackClick} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
@@ -588,7 +625,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
         </TouchableOpacity>
         <View style={styles.locationBadge}>
           <View style={styles.greenDot} />
-          <Text style={styles.locationText}>Location sharing ON</Text>
+          <Text style={styles.locationText}>{currentLocation ? (uploadTripReference ? 'Location sharing on' : 'GPS on device') : 'Waiting for GPS'}</Text>
         </View>
       </View>
 
@@ -624,9 +661,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
             onPress={handleArrivedPress}
           />
 
-          <Text style={styles.shareNote}>
-            Sharing stops automatically when the request is Completed or Cancelled.
-          </Text>
+          <Text style={styles.shareNote}>Tap a map pin to see stop details.</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -643,14 +678,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.DarkBgTop },
   map: { flex: 1, backgroundColor: '#EDF0E9' },
   pickupMarker: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.PrimaryGreen,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: MAP_COLORS.pickup,
     borderWidth: 3, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center',
   },
   dropoffMarker: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.PurpleAccent,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: MAP_COLORS.dropoff,
     borderWidth: 3, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center',
   },
-  pickupMarkerText: { color: '#1A0B2E' },
   markerText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
   currentLocationMarker: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(52, 152, 219, 0.25)',
@@ -693,9 +727,19 @@ const styles = StyleSheet.create({
   chip: { backgroundColor: Colors.CardSurface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   chipText: { ...Typography.bodySmall, color: Colors.TextSecondary },
   shareNote: { ...Typography.bodySmall, color: Colors.TextDim, marginTop: 8 },
-  debugOverlay: {
-    position: 'absolute', top: 110, left: 16, backgroundColor: '#000',
-    padding: 8, borderRadius: 8,
+  pinPopup: {
+    width: 218, paddingHorizontal: 13, paddingBottom: 11,
+    borderRadius: 14, backgroundColor: Colors.White, elevation: 4,
   },
-  debugText: { color: '#fff' },
+  popupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  popupClose: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
+  popupLabel: { ...Typography.labelMedium, color: '#5B218D' },
+  popupTitle: { ...Typography.titleMedium, color: '#24123D', fontWeight: '700' },
+  popupBody: { ...Typography.bodySmall, color: '#54436B', marginTop: 3 },
+  popupTip: {
+    position: 'absolute', bottom: -6, left: '50%', marginLeft: -6,
+    width: 12, height: 12, transform: [{ rotate: '45deg' }], backgroundColor: Colors.White,
+  },
+  stopAction: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
+  stopActionText: { ...Typography.bodySmall, color: '#5B218D', fontWeight: '600' },
 });

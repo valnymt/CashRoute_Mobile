@@ -1,5 +1,5 @@
 import { apiRequest } from './api';
-import type { BackendAssignment } from './assignment';
+import type { BackendAssignment, BackendTeam } from './assignment';
 
 export interface DeliveryNotification {
   id: string;
@@ -15,6 +15,7 @@ export interface DeliveryNotificationDetail {
   reference: string | null;
   assignment: (BackendAssignment & { time_slot?: string | null }) | null;
   cancelReason: string | null;
+  team?: BackendTeam | null;
 }
 
 export async function getNotifications(): Promise<DeliveryNotification[]> {

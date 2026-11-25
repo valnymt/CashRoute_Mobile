@@ -59,7 +59,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
   onLogout, pendingNotificationId, onNotificationHandled, foregroundNotificationId, onDismissForegroundNotification,
 }) => {
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
-  const { currentTrip, refreshData } = useApp();
+  const { currentTrip, refreshData, selectAssignment } = useApp();
   const openPending = useCallback(() => {
     if (!isSignedIn || !pendingNotificationId || !navigationRef.isReady()) return;
     navigationRef.navigate('NotificationDetail', { id: pendingNotificationId });
@@ -93,6 +93,10 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
                 <HomeScreen
                   onRequestPress={() => navigation.navigate('RequestDetail')}
                   onTripMapPress={status => {
+                    if (!currentTrip?.acceptedAt) {
+                      if (currentTrip) navigation.navigate('RequestDetail');
+                      return;
+                    }
                     if (status === 'In Transit') {
                       navigation.navigate('TripMapDropOff');
                     } else if (status === 'Assigned') {
@@ -126,7 +130,16 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
 
             <Stack.Screen name="NotificationDetail">
               {({ navigation, route }) => (
-                <NotificationDetailScreen id={route.params.id} onBackClick={() => navigation.goBack()} />
+                <NotificationDetailScreen
+                  id={route.params.id}
+                  onBackClick={() => navigation.goBack()}
+                  onOpenTrip={assignment => {
+                    if (!assignment.accepted_at) return;
+                    selectAssignment(assignment);
+                    navigation.replace(assignment.status === 'In Transit' ? 'TripMapDropOff' : 'TripMapPickup');
+                    void refreshData();
+                  }}
+                />
               )}
             </Stack.Screen>
 
@@ -223,6 +236,9 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
                   onTripPress={(id) => navigation.navigate('TripDetails', { tripId: id })}
                   onTabChange={tab => {
                     if (tab === 'assignments') navigation.navigate('Home');
+                    if (tab === 'liveTrip' && currentTrip?.acceptedAt) {
+                      navigation.navigate(currentTrip.status === 'In Transit' ? 'TripMapDropOff' : 'TripMapPickup');
+                    }
                   }}
                 />
               )}

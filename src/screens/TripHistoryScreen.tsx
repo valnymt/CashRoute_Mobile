@@ -17,7 +17,7 @@ export const TripHistoryScreen: React.FC<TripHistoryScreenProps> = ({
   onTripPress,
   onTabChange,
 }) => {
-  const { tripHistory, isRefreshing, refreshData } = useApp();
+  const { tripHistory, currentTrip, isRefreshing, refreshData } = useApp();
   const [filter, setFilter] = useState<FilterTab>('all');
 
   useFocusEffect(React.useCallback(() => {
@@ -146,6 +146,7 @@ export const TripHistoryScreen: React.FC<TripHistoryScreenProps> = ({
 
         <BottomNavBar
           selected="history"
+          showLiveTrip={!!currentTrip?.acceptedAt}
           onSelect={item => onTabChange?.(item)}
         />
       </View>

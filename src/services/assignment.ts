@@ -15,6 +15,7 @@ export interface BackendTeamMember {
     name: string;
     role: string | null;
     phone: string | null;
+    is_leader?: boolean;
 }
 
 export interface BackendTeam {
@@ -44,6 +45,13 @@ export interface BackendAssignment {
 
 interface AssignmentResponse {
     data: BackendAssignment[];
+}
+
+export function acceptAssignment(reference: string) {
+    return apiRequest<{ trip: { accepted_at: string } }>(
+        '/requests/' + encodeURIComponent(reference) + '/accept',
+        { method: 'POST' },
+    );
 }
 
 export async function getMyAssignments(): Promise<BackendAssignment[]> {

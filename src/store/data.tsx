@@ -45,6 +45,7 @@ interface AppState {
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   refreshData: () => Promise<void>;
+  selectAssignment: (assignment: BackendAssignment) => void;
   resetTrip: () => void;
 }
 
@@ -193,6 +194,13 @@ export const AppProvider: React.FC<{
     }
   }, [refreshNotifications]);
 
+  const selectedReference = useRef<string | null>(null);
+  const selectAssignment = useCallback((assignment: BackendAssignment) => {
+    selectedReference.current = assignment.reference;
+    setCurrentTrip(mapAssignmentToTrip(assignment));
+    setTeamMembers(mapTeamMembers(assignment));
+  }, []);
+
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     setAssignmentError(null);
@@ -222,7 +230,8 @@ export const AppProvider: React.FC<{
       );
 
       if (activeAssignments.length > 0) {
-        const assignment = activeAssignments[0];
+        const assignment = activeAssignments.find(item => item.reference === selectedReference.current)
+          ?? activeAssignments[0];
 
         setCurrentTrip(mapAssignmentToTrip(assignment));
         setTeamMembers(mapTeamMembers(assignment));
@@ -297,6 +306,7 @@ export const AppProvider: React.FC<{
         markNotificationRead,
         markAllNotificationsRead,
         refreshData,
+        selectAssignment,
         resetTrip,
       }}>
       {children}

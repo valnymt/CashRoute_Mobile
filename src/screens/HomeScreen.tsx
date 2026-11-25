@@ -28,30 +28,21 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMapPress, onNotificationsPress, onHistoryPress, onProfilePress, }) => {
   const [selectedTab, setSelectedTab] = React.useState<BottomNavItem>('assignments');
   const { currentTrip, assignmentError, unreadCount, isRefreshing, refreshData } = useApp();
+  const hasLiveTrip = !!currentTrip?.acceptedAt;
   useFocusEffect(
     useCallback(() => {
       setSelectedTab('assignments');
     }, [])
   );
   const pulseOpacity = usePulse();
-  const hasAutoOpenedTrip = useRef(false);
-
   const openCurrentTrip = () => {
-    if (currentTrip) {
-      onTripMapPress(currentTrip.status);
+    if (!currentTrip) return;
+    if (!currentTrip.acceptedAt) {
+      onRequestPress();
+      return;
     }
+    onTripMapPress(currentTrip.status);
   };
-
-  useEffect(() => {
-    if (
-      !hasAutoOpenedTrip.current &&
-      currentTrip &&
-      ['Assigned', 'In Transit'].includes(currentTrip.status)
-    ) {
-      hasAutoOpenedTrip.current = true;
-      onTripMapPress(currentTrip.status);
-    }
-  }, [currentTrip, onTripMapPress]);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const bannerAnim = useRef(new Animated.Value(0)).current;
@@ -198,9 +189,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
             }>
 
             {/* Current Trip */}
-            <Text style={styles.sectionLabel}>CURRENT TRIP</Text>
+            {hasLiveTrip && <Text style={styles.sectionLabel}>CURRENT TRIP</Text>}
 
-            {currentTrip ? (
+            {currentTrip && hasLiveTrip ? (
               <Animated.View
                 style={{
                   opacity: cardAnim,
@@ -294,7 +285,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                   </GlassCard>
                 </AnimatedPressable>
               </Animated.View>
-            ) : (
+            ) : !currentTrip ? (
               <GlassCard style={{ marginBottom: 12 }}>
                 <View style={styles.emptyAssignment}>
                   <Text style={styles.emptyAssignmentTitle}>
@@ -326,17 +317,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRequestPress, onTripMa
                   )}
                 </View>
               </GlassCard>
-            )}
+            ) : null}
 
           </ScrollView>
         </View>
 
         <BottomNavBar
-          selected={selectedTab}
+          selected={selectedTab === 'liveTrip' && !hasLiveTrip ? 'assignments' : selectedTab}
+          showLiveTrip={hasLiveTrip}
           onSelect={tab => {
             setSelectedTab(tab);
             if (tab === 'history') onHistoryPress?.();
-            if (tab === 'liveTrip') openCurrentTrip();
+            if (tab === 'liveTrip' && hasLiveTrip) openCurrentTrip();
           }}
         />
       </View>

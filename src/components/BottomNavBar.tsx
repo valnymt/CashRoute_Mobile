@@ -7,6 +7,7 @@ export type BottomNavItem = 'assignments' | 'liveTrip' | 'history';
 
 interface BottomNavBarProps {
   selected: BottomNavItem;
+  showLiveTrip: boolean;
   onSelect: (item: BottomNavItem) => void;
 }
 
@@ -51,10 +52,10 @@ const navItems: {
   { key: 'history', label: 'History', Icon: HistoryIcon },
 ];
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({ selected, onSelect }) => {
+export const BottomNavBar: React.FC<BottomNavBarProps> = ({ selected, onSelect, showLiveTrip }) => {
   return (
     <View style={styles.container}>
-      {navItems.map(item => {
+      {navItems.filter(item => showLiveTrip || item.key !== 'liveTrip').map(item => {
         const isActive = selected === item.key;
         const color = isActive ? Colors.PrimaryGreen : Colors.TextDim;
         return (

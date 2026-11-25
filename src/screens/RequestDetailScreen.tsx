@@ -7,8 +7,7 @@ import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components'
 import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 import { useAnimatedMount, usePulse } from '../hooks/useAnimatedMount';
-import { apiRequest } from '../services/api';
-import { getToken } from '../services/authStorage';
+import { acceptAssignment } from '../services/assignment';
 
 interface RequestDetailScreenProps {
   onBackClick: () => void;
@@ -98,25 +97,7 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
         return;
       }
 
-      // Get the token saved after mobile login.
-      const token = await getToken();
-
-      if (!token) {
-        showDialog(
-          'Authentication required',
-          'Please log in again before accepting this assignment.',
-        );
-        return;
-      }
-
-      // Accept the real assignment through Laravel.
-      const result = await apiRequest(
-        `/requests/${encodeURIComponent(currentTrip.id)}/accept`,
-        { method: 'POST' },
-        token,
-      );
-
-      console.log('Accept response:', result);
+      await acceptAssignment(currentTrip.id);
 
       // Navigate only after the backend confirms acceptance.
       onStartTrip();
