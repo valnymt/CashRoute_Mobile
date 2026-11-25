@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { AuraBackground, GlassCard, BottomNavBar, AnimatedPressable } from '../components';
@@ -18,6 +19,10 @@ export const TripHistoryScreen: React.FC<TripHistoryScreenProps> = ({
 }) => {
   const { tripHistory, isRefreshing, refreshData } = useApp();
   const [filter, setFilter] = useState<FilterTab>('all');
+
+  useFocusEffect(React.useCallback(() => {
+    void refreshData();
+  }, [refreshData]));
 
   const filtered = tripHistory.filter(t => {
     if (filter === 'all') return true;

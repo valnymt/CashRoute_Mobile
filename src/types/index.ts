@@ -50,6 +50,8 @@ export interface TripData {
   cashRequestId: number;
   tripId: number;
   acceptedAt?: string | null;
+  canAccept?: boolean;
+  leaderName?: string | null;
 
   pickupLatitude: number | null;
   pickupLongitude: number | null;
@@ -78,8 +80,6 @@ export interface HistoryTrip {
   duration: string;
   onTime: boolean;
   timeline: { label: string; at?: string }[];
-  arrivedPickupAt?: string | null;
-  arrivedDropoffAt?: string | null;
 }
 
 export interface TeamMember {

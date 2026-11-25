@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
+  Pressable,
 } from 'react-native';
 import {
   AuraBackground,
@@ -18,10 +20,12 @@ import {
 } from '../components';
 import { Colors, Typography } from '../theme';
 import { useAppDialog } from '../components/AppDialog';
-import { useApp } from '../store/data';
+
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
 import {
+  getHandoverContact,
   requestHandoverOtp,
+  type HandoverContact,
   verifyHandoverOtp,
 } from '../services/otp';
 
@@ -45,7 +49,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   onBackClick,
   onVerified,
 }) => {
-  const { currentTrip } = useApp();
+
   const showDialog = useAppDialog();
   const [feedback, setFeedback] = useState<{ message: string; invalidCode?: boolean } | null>(null);
   const [step, setStep] = useState<'request' | 'enterCode'>('request');
@@ -55,11 +59,51 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [expirySeconds, setExpirySeconds] = useState(0);
   const [codeFocused, setCodeFocused] = useState(false);
+  const [contact, setContact] = useState<HandoverContact | null>(null);
+  const [contactError, setContactError] = useState(false);
+  const [contactRetry, setContactRetry] = useState(0);
   const contentAnim = useAnimatedMount(100, 400);
 
   const title = type === 'pickup' ? 'Pickup verification' : 'Drop-off verification';
   const currentStep = type === 'pickup' ? 1 : 2;
   const otpStage = type === 'pickup' ? 'pickup' : 'dropoff';
+  const email = contact?.email;
+  const phone = contact?.phone;
+  const dialNumber = phone?.replace(/[^+\d]/g, '');
+  const canCall = dialNumber && /^\+?\d+$/.test(dialNumber);
+  const contactCard = (
+    <GlassCard style={styles.contactPanel}>
+      <View style={styles.contactCard}>
+        <Text style={styles.contactName}>{contact?.name || 'Handover contact'}</Text>
+        <Text style={styles.sendingToLabel}>{contact?.is_test_recipient ? 'OTP test inbox' : 'OTP email'}</Text>
+        <Text selectable style={styles.contactInfo}>
+          {email || (contact ? 'Email address missing' : contactError ? 'Unable to load the email address' : 'Loading contact details…')}
+        </Text>
+        {contactError && (
+          <Pressable style={styles.contactAction} accessibilityRole="button" onPress={() => setContactRetry(value => value + 1)}>
+            <Text style={styles.contactActionText}>Retry</Text>
+          </Pressable>
+        )}
+        {canCall && (
+          <Pressable style={styles.contactAction} accessibilityRole="button"
+            onPress={() => void Linking.openURL('tel:' + dialNumber).catch(() =>
+              showDialog('Unable to open the dialer', 'Call this number manually: ' + phone))}>
+            <Text style={styles.contactActionText}>Call {phone}</Text>
+          </Pressable>
+        )}
+      </View>
+    </GlassCard>
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setContact(null);
+    setContactError(false);
+    getHandoverContact(cashRequestId, otpStage, controller.signal)
+      .then(result => { if (!controller.signal.aborted) setContact(result); })
+      .catch(() => { if (!controller.signal.aborted) setContactError(true); });
+    return () => controller.abort();
+  }, [cashRequestId, otpStage, contactRetry]);
 
   useEffect(() => {
     if (!expiresAt) {
@@ -93,6 +137,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
       setFeedback(null);
       setIsLoading(true);
       const response = await requestHandoverOtp(cashRequestId, otpStage);
+      setContact(response.contact);
       setOtpId(response.otp_id);
       setExpiresAt(response.expires_at);
       setOtpCode('');
@@ -162,16 +207,6 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     onBackClick();
   };
 
-  const contactName =
-    type === 'pickup'
-      ? currentTrip?.contactName
-      : currentTrip?.dropOffContact;
-  const contactInfo =
-    type === 'pickup'
-      ? currentTrip?.contactInfo
-      : currentTrip?.dropOffContactInfo;
-  const cleanContactName = contactName?.split(' · ')[0] || 'registered contact';
-
   const handleOtpChange = (text: string) => {
     if (/^\d{0,6}$/.test(text)) {
       setOtpCode(text);
@@ -208,32 +243,15 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
           <Animated.View style={[styles.content, contentAnim]}>
             {step === 'request' ? (
               <View style={styles.requestContent}>
-                <View style={styles.otpCircle}>
-                  <Text style={styles.otpCircleText}>OTP</Text>
-                </View>
                 <Text style={styles.verifyTitle}>
                   Verify handover at {type === 'pickup' ? 'pickup' : 'drop-off'}
                 </Text>
-                <Text style={styles.verifyDesc}>
-                  A one-time code will be sent to the registered contact at this location.
-                </Text>
-                <View style={{ height: 24 }} />
-                <GlassCard>
-                  <View style={styles.contactCard}>
-                    <Text style={styles.sendingToLabel}>SENDING TO</Text>
-                    <Text style={styles.contactName}>{contactName || 'Registered contact'}</Text>
-                    <Text style={styles.contactInfo}>{contactInfo || 'Registered email address'}</Text>
-                  </View>
-                </GlassCard>
+                {contactCard}
               </View>
             ) : (
               <View style={styles.codeContent}>
-                <GlassCard style={styles.sentCard}>
-                  <Text style={styles.sentText}>
-                    OTP sent to {cleanContactName} by email.
-                  </Text>
-                </GlassCard>
-                <View style={{ height: 14 }} />
+                {contactCard}
+                <View style={{ height: 18 }} />
                 <Text style={styles.enterCodeTitle}>Enter 6-digit code</Text>
                 <View style={{ height: 16 }} />
                 <View style={styles.codeEntry}>
@@ -305,6 +323,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
               <PrimaryButton
                 text={isLoading ? 'Sending...' : 'Request OTP'}
                 onPress={handleRequestOtp}
+                disabled={!email}
                 loading={isLoading}
                 style={{ marginBottom: 8 }}
               />
@@ -389,42 +408,22 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   requestContent: {
-    alignItems: 'center',
-  },
-  otpCircle: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 1,
-    borderColor: Colors.PrimaryGreen,
-    backgroundColor: Colors.PurpleAccent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  otpCircleText: {
-    ...Typography.headlineLarge,
-    color: Colors.PrimaryGreen,
+    width: '100%',
   },
   verifyTitle: {
     ...Typography.headlineLarge,
     color: Colors.White,
     textAlign: 'center',
   },
-  verifyDesc: {
-    ...Typography.bodyMedium,
-    color: Colors.TextSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
   sendingToLabel: {
     ...Typography.labelSmall,
     color: Colors.PrimaryGreen,
-    letterSpacing: 1.5,
+    marginTop: 14,
     marginBottom: 4,
   },
+  contactPanel: { width: '100%', marginTop: 16 },
   contactCard: {
-    padding: 16,
+    padding: 20,
   },
   contactName: {
     ...Typography.titleMedium,
@@ -432,23 +431,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   contactInfo: {
-    ...Typography.bodySmall,
-    color: Colors.TextSecondary,
-    marginTop: 4,
+    ...Typography.bodyMedium,
+    color: Colors.White,
+  },
+  contactAction: {
+    minHeight: 48,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  contactActionText: {
+    ...Typography.bodyMedium,
+    color: Colors.PrimaryGreen,
+    fontWeight: '600',
   },
   codeContent: {
     width: '100%',
-  },
-  sentCard: {
-    borderColor: Colors.PrimaryGreen,
-    borderRadius: 20,
-    backgroundColor: 'rgba(150, 215, 76, 0.08)',
-  },
-  sentText: {
-    ...Typography.bodyMedium,
-    color: Colors.PrimaryGreen,
-    fontSize: 13,
-    padding: 13,
   },
   enterCodeTitle: {
     ...Typography.headlineMedium,

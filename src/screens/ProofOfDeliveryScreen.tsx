@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, TextInput, Modal, Pressable, SafeAreaView } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
@@ -9,7 +9,7 @@ import { useAnimatedMount } from '../hooks/useAnimatedMount';
 import { apiRequest } from '../services/api';
 
 type DeliveryPhoto = { uri: string; name: string; type: string };
-const MAX_PHOTOS = 3;
+
 
 interface ProofOfDeliveryScreenProps {
   onBackClick: () => void;
@@ -22,7 +22,8 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
 }) => {
   const { currentTrip } = useApp();
   const [confirmed, setConfirmed] = useState(false);
-  const [photos, setPhotos] = useState<DeliveryPhoto[]>([]);
+  const [photo, setPhoto] = useState<DeliveryPhoto | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [receiver, setReceiver] = useState('');
   const [error, setError] = useState('');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -36,7 +37,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
   const card3Anim = useAnimatedMount(160, 350);
   const card4Anim = useAnimatedMount(240, 350);
 
-  const canSubmit = confirmed && photos.length > 0 && !isCapturing && !isSubmitting && !drawing;
+  const canSubmit = confirmed && !!photo && !isCapturing && !isSubmitting && !drawing;
 
   const takePhoto = async () => {
     setError('');
@@ -48,7 +49,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
       if (!photo?.uri || !photo.type) throw new Error(result.errorMessage || 'Could not capture a photo.');
       if ((photo.fileSize ?? 0) > 4 * 1024 * 1024) throw new Error('Photo exceeds 4 MB. Please retake it.');
       const captured = { uri: photo.uri, type: photo.type, name: photo.fileName ?? 'delivery.jpg' };
-      setPhotos(previous => [...previous, captured].slice(0, MAX_PHOTOS));
+      setPhoto(captured);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not open the camera.');
     } finally {
@@ -57,7 +58,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit || !currentTrip || submitting.current) return;
+    if (!canSubmit || !currentTrip || !photo || submitting.current) return;
     submitting.current = true;
     setIsSubmitting(true);
     setError('');
@@ -65,7 +66,7 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
       const body = new FormData();
       body.append('confirmed_amount', currentTrip.amount.replace(/,/g, ''));
       if (receiver.trim()) body.append('receiver_name', receiver.trim());
-      for (const photo of photos) body.append('photos[]', photo as unknown as Blob);
+      body.append('photos[]', photo as unknown as Blob);
       if (paths.length) {
         const canvas = signature.current;
         if (!canvas) throw new Error('Could not capture the receiver signature.');
@@ -132,26 +133,23 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                   </View>
                 </View>
                 <View style={{ height: 12 }} />
-                <View style={styles.photoRow}>
-                  {photos.map((photo, index) => (
-                    <View key={photo.uri}>
-                      <Image source={{ uri: photo.uri }} style={styles.preview} accessibilityLabel={`Delivery photo ${index + 1}`} />
-                      <TouchableOpacity disabled={isSubmitting} onPress={() => setPhotos(items => items.filter((_, i) => i !== index))}>
-                        <Text style={styles.addPhotoText}>Remove photo {index + 1}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  {photos.length < MAX_PHOTOS && (
-                    <TouchableOpacity
-                      style={styles.photo2}
-                      disabled={isCapturing || isSubmitting}
-                      onPress={takePhoto}
-                      activeOpacity={0.7}>
-                      <Text style={styles.cameraIcon}>📷</Text>
-                      <Text style={styles.addPhotoText}>Take photo</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                {photo ? (
+                  <View>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Open full-size delivery photo"
+                      onPress={() => setPreviewOpen(true)}>
+                      <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="cover" />
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Remove delivery photo"
+                      style={styles.photoClose} disabled={isSubmitting} onPress={() => setPhoto(null)}>
+                      <CloseIcon />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable style={styles.photo2} accessibilityRole="button"
+                    disabled={isCapturing || isSubmitting} onPress={takePhoto}>
+                    <Text style={styles.addPhotoText}>{isCapturing ? 'Opening camera…' : 'Take delivery photo'}</Text>
+                  </Pressable>
+                )}
               </View>
             </GlassCard>
           </Animated.View>
@@ -207,6 +205,17 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
           <View style={{ height: 24 }} />
         </ScrollView>
 
+        <Modal visible={previewOpen && !!photo} onRequestClose={() => setPreviewOpen(false)} animationType="fade">
+          <SafeAreaView style={styles.photoViewer}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close delivery photo"
+              style={styles.viewerClose} onPress={() => setPreviewOpen(false)}>
+              <CloseIcon />
+            </Pressable>
+            {photo && <Image source={{ uri: photo.uri }} style={styles.fullPhoto} resizeMode="contain"
+              accessibilityLabel="Delivery photo" />}
+          </SafeAreaView>
+        </Modal>
+
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         <PrimaryButton
           text={isSubmitting ? 'Submitting...' : 'Submit Proof'}
@@ -219,6 +228,14 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
     </AuraBackground>
   );
 };
+
+function CloseIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path d="M6 6l12 12M18 6L6 18" stroke={Colors.White} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -307,14 +324,8 @@ const styles = StyleSheet.create({
     ...Typography.labelLarge,
     color: Colors.TextSecondary,
   },
-  photoRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
   photo2: {
-    width: 150,
-    height: 150,
+    minHeight: 80,
     borderWidth: 1,
     borderColor: Colors.CardBorder,
     borderRadius: 16,
@@ -322,16 +333,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cameraIcon: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
   addPhotoText: {
     ...Typography.bodySmall,
     color: Colors.TextSecondary,
   },
   signatureBox: {
-    height: 120,
+    height: 230,
+    marginHorizontal: -8,
     backgroundColor: Colors.White,
     borderWidth: 1,
     borderColor: Colors.CardBorder,
@@ -344,7 +352,14 @@ const styles = StyleSheet.create({
     ...Typography.bodyMedium,
     color: Colors.TextDim,
   },
-  preview: { width: 104, height: 104, borderRadius: 12 },
+  preview: { width: '100%', height: 168, borderRadius: 12 },
+  photoClose: {
+    position: 'absolute', top: 8, right: 8, width: 44, height: 44,
+    borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.Black,
+  },
+  photoViewer: { flex: 1, backgroundColor: Colors.Black },
+  viewerClose: { alignSelf: 'flex-end', padding: 14, margin: 10 },
+  fullPhoto: { flex: 1, width: '100%' },
   receiverInput: { color: Colors.White, marginBottom: 8 },
   error: { color: Colors.AccentRed, marginBottom: 8 },
 });

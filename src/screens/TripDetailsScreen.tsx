@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated, Image } from 'react-native';
 import { AuraBackground, GlassCard, TopBar } from '../components';
 import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
 import { useAnimatedMount } from '../hooks/useAnimatedMount';
+import { getTripProofPhotos } from '../services/tripHistory';
 
 interface TripDetailsScreenProps {
   onBackClick: () => void;
@@ -54,8 +55,6 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
               <DetailRow label="Type" value={trip.type} showBorder />
               <DetailRow label="Amount" value={trip.amount} showBorder />
               <DetailRow label="Team" value={trip.team} showBorder />
-              <DetailRow label="Pickup arrival" value={formatTimestamp(trip.arrivedPickupAt)} showBorder />
-              <DetailRow label="Drop-off arrival" value={formatTimestamp(trip.arrivedDropoffAt)} showBorder />
               <View style={styles.durationRow}>
                 <Text style={styles.detailLabel}>Duration</Text>
                 <View style={styles.durationRight}>
@@ -75,7 +74,7 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
           <Animated.View style={card2Anim}>
             <GlassCard>
               <View style={styles.timelineCard}>
-                <Text style={styles.timelineLabel}>TIMELINE</Text>
+                <Text style={styles.timelineLabel}>DELIVERY TIMELINE</Text>
                 <View style={{ height: 12 }} />
                 {trip.timeline.length === 0 && <Text style={styles.detailLabel}>No trip events recorded.</Text>}
                 {trip.timeline.map((item, i) => (
@@ -98,11 +97,7 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
 
           <Animated.View style={card3Anim}>
             <GlassCard>
-              <View style={styles.proofCard}>
-                <Text style={styles.proofText}>
-                  {trip.status === 'Completed' ? 'Proof photo saved ✓' : 'No proof available'}
-                </Text>
-              </View>
+              <DeliveryPhotos key={trip.id} reference={trip.id} />
             </GlassCard>
           </Animated.View>
 
@@ -113,8 +108,50 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
   );
 };
 
-function formatTimestamp(value?: string | null): string {
-  if (!value) return 'Not recorded';
+function DeliveryPhotos({ reference }: { reference: string }) {
+  const [photos, setPhotos] = useState<Awaited<ReturnType<typeof getTripProofPhotos>>>([]);
+  const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setState('loading');
+    setFailedPhotos([]);
+    getTripProofPhotos(reference, controller.signal).then(items => {
+      if (controller.signal.aborted) return;
+      setPhotos(items);
+      setState('ready');
+    }).catch(() => {
+      if (!controller.signal.aborted) setState('error');
+    });
+    return () => controller.abort();
+  }, [reference]);
+
+  return (
+    <View style={styles.proofCard}>
+      <Text style={styles.timelineLabel}>PROOF OF DELIVERY</Text>
+      {state === 'loading' && <Text style={styles.proofText}>Loading delivery photos…</Text>}
+      {state === 'error' && <Text style={styles.proofText}>Unable to load delivery photos.</Text>}
+      {state === 'ready' && photos.length === 0 && <Text style={styles.proofText}>No delivery photos were saved.</Text>}
+      {state === 'ready' && photos.map((photo, index) => (
+        failedPhotos.includes(photo.uri) ? (
+          <Text key={photo.uri} style={styles.proofText}>Delivery photo {index + 1} is unavailable.</Text>
+        ) : (
+          <Image
+            key={photo.uri}
+            source={photo}
+            style={styles.proofPhoto}
+            resizeMode="contain"
+            accessibilityLabel={'Delivery photo ' + (index + 1)}
+            onError={() => setFailedPhotos(items => [...items, photo.uri])}
+          />
+        )
+      ))}
+    </View>
+  );
+}
+
+function formatTimestamp(value: string): string {
   const date = new Date(value);
   return date.toLocaleString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric',
@@ -244,9 +281,14 @@ const styles = StyleSheet.create({
     color: Colors.AccentRed,
   },
   proofCard: {
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 20,
+    gap: 12,
+  },
+  proofPhoto: {
+    width: '100%',
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: Colors.CardSurface,
   },
   proofText: {
     ...Typography.bodyMedium,

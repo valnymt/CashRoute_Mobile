@@ -3,7 +3,15 @@ import { getToken } from './authStorage';
 
 export type OtpStage = 'pickup' | 'dropoff';
 
+export interface HandoverContact {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    is_test_recipient: boolean;
+}
+
 export interface GenerateOtpResponse {
+    contact: HandoverContact;
     message: string;
     otp_id: number;
     stage: OtpStage;
@@ -23,6 +31,13 @@ async function requireToken(): Promise<string> {
     }
 
     return token;
+}
+
+export function getHandoverContact(cashRequestId: number, stage: OtpStage, signal: AbortSignal) {
+    return apiRequest<HandoverContact>(
+        '/cash-requests/' + cashRequestId + '/otp/contact?stage=' + stage,
+        { signal },
+    );
 }
 
 export async function requestHandoverOtp(

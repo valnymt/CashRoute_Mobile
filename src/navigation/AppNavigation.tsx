@@ -134,7 +134,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
               {({ navigation }) => (
                 <RequestDetailScreen
                   onBackClick={() => navigation.goBack()}
-                  onStartTrip={() => navigation.navigate('TripMapPickup')}
+                  onStartTrip={() => navigation.navigate(currentTrip?.status === 'In Transit' ? 'TripMapDropOff' : 'TripMapPickup')}
                 />
               )}
             </Stack.Screen>

@@ -80,6 +80,8 @@ function mapAssignmentToTrip(item: BackendAssignment): TripData {
     cashRequestId: item.cash_request_id,
     tripId: item.trip_id,
     acceptedAt: item.accepted_at,
+    canAccept: item.can_accept === true,
+    leaderName: item.leader_name,
 
     type: item.type,
     amount: Number(item.amount).toLocaleString('en-US'),

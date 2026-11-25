@@ -1,5 +1,6 @@
 import { useAppDialog } from '../components/AppDialog';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Linking, } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
@@ -61,6 +62,13 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
   const showDialog = useAppDialog();
   const { currentTrip, teamMembers, user, refreshData } = useApp();
   const [isLoading, setIsLoading] = useState(false);
+  const waitingForAcceptance = currentTrip?.status === 'Assigned' && !currentTrip.acceptedAt;
+
+  useFocusEffect(useCallback(() => {
+    if (!waitingForAcceptance) return;
+    const timer = setInterval(() => void refreshData(), 10000);
+    return () => clearInterval(timer);
+  }, [waitingForAcceptance, refreshData]));
 
   // One staggered mount animation per card so the detail stack feels alive.
   const card1 = useAnimatedMount(0, 400);
@@ -83,6 +91,12 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
     }
     try {
       setIsLoading(true);
+
+      if (!currentTrip.canAccept) {
+        showDialog('Waiting for the team leader', 'Only the assigned team leader can accept this request.');
+        void refreshData();
+        return;
+      }
 
       // Get the token saved after mobile login.
       const token = await getToken();
@@ -376,7 +390,14 @@ export const RequestDetailScreen: React.FC<RequestDetailScreenProps> = ({
           )}
         </ScrollView>
 
-        {currentTrip && (currentTrip.acceptedAt || currentTrip.status === 'Assigned') && (
+        {currentTrip?.status === 'Assigned' && !currentTrip.acceptedAt && !currentTrip.canAccept && (
+          <Text style={[styles.emptyMessage, styles.acceptBtn]}>
+            {currentTrip.leaderName
+              ? 'Waiting for ' + currentTrip.leaderName + ' to accept this assignment.'
+              : 'Waiting for an administrator to select a team leader.'}
+          </Text>
+        )}
+        {currentTrip && (currentTrip.acceptedAt || currentTrip.canAccept) && (
           <PrimaryButton
             text={currentTrip.acceptedAt ? 'Open Trip Map' : 'Accept Assignment'}
             onPress={currentTrip.acceptedAt ? onStartTrip : handleAccept}

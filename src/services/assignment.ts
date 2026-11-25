@@ -38,6 +38,8 @@ export interface BackendAssignment {
     dropoff: AssignmentLocation;
     assigned_at: string | null;
     accepted_at: string | null;
+    can_accept?: boolean;
+    leader_name?: string | null;
 }
 
 interface AssignmentResponse {
