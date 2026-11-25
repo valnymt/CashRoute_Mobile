@@ -22,7 +22,6 @@ import {
 } from '../screens';
 type Coordinates = { latitude: number; longitude: number } | null;
 import { useApp } from '../store';
-import { submitProofOfDelivery } from '../services/proof';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -201,14 +200,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
               {({ navigation }) => (
                 <ProofOfDeliveryScreen
                   onBackClick={() => navigation.goBack()}
-                  onSubmitProof={async ({ photoUri, confirmedAmount }) => {
-                    if (!currentTrip) {
-                      throw new Error('There is no active trip to submit proof for.');
-                    }
-
-                    await submitProofOfDelivery(currentTrip.id, photoUri, confirmedAmount);
-                    navigation.navigate('RequestCompleted');
-                  }}
+                  onSubmitProof={() => navigation.navigate('RequestCompleted')}
                 />
               )}
             </Stack.Screen>

@@ -1,19 +1,19 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, Alert } from 'react-native';
-import { AuraBackground, GlassCard, TopBar, PrimaryButton, } from '../components';
-import { useAppDialog } from '../components/AppDialog';
-import { launchCamera, launchImageLibrary, type ImagePickerResponse, } from 'react-native-image-picker';
-import SignatureCanvas from 'react-native-signature-canvas';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, TextInput } from 'react-native';
+import { launchCamera } from 'react-native-image-picker';
+import Svg, { Path } from 'react-native-svg';
+import { AuraBackground, GlassCard, TopBar, PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
 import { useApp } from '../store/data';
+import { useAnimatedMount } from '../hooks/useAnimatedMount';
+import { apiRequest } from '../services/api';
+
+type DeliveryPhoto = { uri: string; name: string; type: string };
+const MAX_PHOTOS = 3;
 
 interface ProofOfDeliveryScreenProps {
   onBackClick: () => void;
-  onSubmitProof: (data: {
-    photoUri: string;
-    confirmedAmount: number;
-    signatureDataUrl: string | null;
-  }) => Promise<void>;
+  onSubmitProof: () => void;
 }
 
 export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
@@ -21,106 +21,64 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
   onSubmitProof,
 }) => {
   const { currentTrip } = useApp();
-
   const [confirmed, setConfirmed] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<DeliveryPhoto[]>([]);
+  const [receiver, setReceiver] = useState('');
+  const [error, setError] = useState('');
+  const [isCapturing, setIsCapturing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [paths, setPaths] = useState<string[]>([]);
+  const signature = useRef<Svg>(null);
+  const submitting = useRef(false);
 
-  const signatureRef = useRef<any>(null);
+  const card1Anim = useAnimatedMount(0, 350);
+  const card3Anim = useAnimatedMount(160, 350);
+  const card4Anim = useAnimatedMount(240, 350);
 
-  const canSubmit = confirmed && !!photoUri;
+  const canSubmit = confirmed && photos.length > 0 && !isCapturing && !isSubmitting && !drawing;
 
-  const handleImagePickerResponse = (response: ImagePickerResponse) => {
-    if (response.didCancel) return;
-
-    if (response.errorCode) {
-      Alert.alert(
-        'Photo error',
-        response.errorMessage ?? 'Could not select the photo.',
-      );
-      return;
+  const takePhoto = async () => {
+    setError('');
+    setIsCapturing(true);
+    try {
+      const result = await launchCamera({ mediaType: 'photo', maxWidth: 1600, maxHeight: 1600, quality: 0.8, assetRepresentationMode: 'compatible' });
+      if (result.didCancel) return;
+      const photo = result.assets?.[0];
+      if (!photo?.uri || !photo.type) throw new Error(result.errorMessage || 'Could not capture a photo.');
+      if ((photo.fileSize ?? 0) > 4 * 1024 * 1024) throw new Error('Photo exceeds 4 MB. Please retake it.');
+      const captured = { uri: photo.uri, type: photo.type, name: photo.fileName ?? 'delivery.jpg' };
+      setPhotos(previous => [...previous, captured].slice(0, MAX_PHOTOS));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not open the camera.');
+    } finally {
+      setIsCapturing(false);
     }
-
-    const uri = response.assets?.[0]?.uri;
-    if (uri) setPhotoUri(uri);
-  };
-
-  const takePhoto = () => {
-    launchCamera(
-      {
-        mediaType: 'photo',
-        cameraType: 'back',
-        saveToPhotos: true,
-      },
-      handleImagePickerResponse,
-    );
-  };
-
-  const choosePhoto = () => {
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        selectionLimit: 1,
-      },
-      handleImagePickerResponse,
-    );
-  };
-
-  const chooseSignatureImage = () => {
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        selectionLimit: 1,
-      },
-      (response) => {
-        if (response.didCancel) return;
-
-        if (response.errorCode) {
-          Alert.alert(
-            'Signature image error',
-            response.errorMessage ?? 'Could not select the image.',
-          );
-          return;
-        }
-
-        const uri = response.assets?.[0]?.uri;
-        if (uri) setSignatureDataUrl(uri);
-      },
-    );
-  };
-
-  const handleSignatureOK = (dataUrl: string) => {
-    setSignatureDataUrl(dataUrl);
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit || isSubmitting) return;
-
+    if (!canSubmit || !currentTrip || submitting.current) return;
+    submitting.current = true;
     setIsSubmitting(true);
-
+    setError('');
     try {
-      const rawAmount = String(currentTrip.amount).replace(/,/g, '').trim();
-      const confirmedAmount = Number(rawAmount);
-
-      if (!Number.isFinite(confirmedAmount) || confirmedAmount < 0) {
-        Alert.alert('Invalid amount', 'The trip amount is not a valid number.');
-        return;
+      const body = new FormData();
+      body.append('confirmed_amount', currentTrip.amount.replace(/,/g, ''));
+      if (receiver.trim()) body.append('receiver_name', receiver.trim());
+      for (const photo of photos) body.append('photos[]', photo as unknown as Blob);
+      if (paths.length) {
+        const canvas = signature.current;
+        if (!canvas) throw new Error('Could not capture the receiver signature.');
+        const png = await new Promise<string>(resolve => canvas.toDataURL(resolve));
+        if (!png) throw new Error('Could not capture the receiver signature.');
+        body.append('signature_png', png);
       }
-
-      await onSubmitProof({
-        photoUri: photoUri!,
-        confirmedAmount,
-        signatureDataUrl,
-      });
-    } catch (error) {
-      Alert.alert(
-        'Submission failed',
-        error instanceof Error
-          ? error.message
-          : 'Could not submit proof of delivery.',
-      );
+      await apiRequest(`/requests/${encodeURIComponent(currentTrip.id)}/proof-of-delivery`, { method: 'POST', body });
+      onSubmitProof();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not submit proof. Please try again.');
     } finally {
+      submitting.current = false;
       setIsSubmitting(false);
     }
   };
@@ -133,17 +91,16 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
       </AuraBackground>
     );
   }
-  const { showDialog } = useAppDialog();
 
   return (
     <AuraBackground>
       <View style={styles.container}>
         <TopBar title="Proof of delivery" onBackClick={onBackClick} />
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} scrollEnabled={!drawing} keyboardShouldPersistTaps="handled">
           <View style={{ height: 12 }} />
 
-          <View style={styles.card}>
+          <Animated.View style={card1Anim}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <Text style={styles.greenLabel}>CONFIRM RECEIVED AMOUNT</Text>
@@ -161,25 +118,11 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                 </TouchableOpacity>
               </View>
             </GlassCard>
-          </View>
+          </Animated.View>
 
           <View style={{ height: 12 }} />
 
-          {/* <Animated.View style={card2Anim}>
-            <GlassCard>
-              <View style={styles.cardContent}>
-                <Text style={styles.sectionTitle}>Denominations (provided)</Text>
-                <View style={{ height: 12 }} />
-                <DenominationRow text="10k x 15" />
-                <View style={{ height: 8 }} />
-                <DenominationRow text="5k x 20" />
-              </View>
-            </GlassCard>
-          </Animated.View> */}
-
-          <View style={{ height: 12 }} />
-
-          <View style={styles.card}>
+          <Animated.View style={card3Anim}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <View style={styles.headerRow}>
@@ -188,39 +131,34 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                     <Text style={styles.requiredText}>Required</Text>
                   </View>
                 </View>
-
-                {/* photo to upload */}
                 <View style={{ height: 12 }} />
                 <View style={styles.photoRow}>
-                  {photoUri ? (
-                    <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-                  ) : (
+                  {photos.map((photo, index) => (
+                    <View key={photo.uri}>
+                      <Image source={{ uri: photo.uri }} style={styles.preview} accessibilityLabel={`Delivery photo ${index + 1}`} />
+                      <TouchableOpacity disabled={isSubmitting} onPress={() => setPhotos(items => items.filter((_, i) => i !== index))}>
+                        <Text style={styles.addPhotoText}>Remove photo {index + 1}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {photos.length < MAX_PHOTOS && (
                     <TouchableOpacity
                       style={styles.photo2}
+                      disabled={isCapturing || isSubmitting}
                       onPress={takePhoto}
                       activeOpacity={0.7}>
                       <Text style={styles.cameraIcon}>📷</Text>
                       <Text style={styles.addPhotoText}>Take photo</Text>
                     </TouchableOpacity>
                   )}
-
-                  <TouchableOpacity
-                    style={styles.photo2}
-                    onPress={choosePhoto}
-                    activeOpacity={0.7}>
-                    <Text style={styles.addPhotoText}>
-                      {photoUri ? 'Choose another' : '+ Gallery'}
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-
               </View>
             </GlassCard>
-          </View>
+          </Animated.View>
 
           <View style={{ height: 12 }} />
 
-          <View style={styles.card}>
+          <Animated.View style={card4Anim}>
             <GlassCard>
               <View style={styles.cardContent}>
                 <View style={styles.headerRow}>
@@ -229,55 +167,47 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
                     <Text style={styles.optionalText}>Optional</Text>
                   </View>
                 </View>
-
-                {/* signature box */}
                 <View style={{ height: 12 }} />
-                <View style={styles.signatureBox}>
-                  <SignatureCanvas
-                    ref={signatureRef}
-                    onOK={handleSignatureOK}
-                    onEmpty={() =>
-                      showDialog(
-                        'Signature required',
-                        'Please draw a signature first.',
-                      )
-                    }
-                    descriptionText="Sign above"
-                    clearText="Clear"
-                    confirmText="Use signature"
-                    webStyle={`
-                      .m-signature-pad { box-shadow: none; border: none; }
-                      .m-signature-pad--body { border: none; }
-                      .m-signature-pad--footer { display: flex; }
-                      body, html { width: 100%; height: 100%; }
-                    `}
-                  />
+                <TextInput
+                  accessibilityLabel="Receiver name"
+                  placeholder="Receiver name"
+                  placeholderTextColor={Colors.TextSecondary}
+                  value={receiver}
+                  editable={!isSubmitting}
+                  onChangeText={setReceiver}
+                  maxLength={120}
+                  style={styles.receiverInput}
+                />
+                <View
+                  style={styles.signatureBox}
+                  onStartShouldSetResponder={() => !isSubmitting}
+                  onResponderGrant={({ nativeEvent: { locationX, locationY } }) => {
+                    setDrawing(true);
+                    setPaths(previous => [...previous, `M ${locationX} ${locationY} l 0.01 0`]);
+                  }}
+                  onResponderMove={({ nativeEvent: { locationX, locationY } }) => {
+                    setPaths(previous => [...previous.slice(0, -1), `${previous.at(-1)} L ${locationX} ${locationY}`]);
+                  }}
+                  onResponderRelease={() => setDrawing(false)}
+                  onResponderTerminate={() => setDrawing(false)}>
+                  <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <Svg ref={signature} width="100%" height="100%">
+                      {paths.map((path, index) => <Path key={index} d={path} stroke="#171717" strokeWidth={2.5} strokeLinecap="round" fill="none" />)}
+                    </Svg>
+                  </View>
+                  {paths.length === 0 && <View pointerEvents="none"><Text style={styles.signText}>Sign here</Text></View>}
                 </View>
-
-                <View style={styles.signatureActions}>
-                  <TouchableOpacity
-                    style={styles.signatureButton}
-                    onPress={() => signatureRef.current?.readSignature()}>
-                    <Text style={styles.addPhotoText}>Use drawn signature</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.signatureButton}
-                    onPress={chooseSignatureImage}>
-                    <Text style={styles.addPhotoText}>Upload signature image</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {signatureDataUrl && (
-                  <Text style={styles.signatureSavedText}>Signature added ✓</Text>
-                )}
+                {paths.length > 0 && <TouchableOpacity disabled={isSubmitting} onPress={() => setPaths([])}>
+                  <Text style={styles.addPhotoText}>Clear signature</Text>
+                </TouchableOpacity>}
               </View>
             </GlassCard>
-          </View>
+          </Animated.View>
 
           <View style={{ height: 24 }} />
         </ScrollView>
 
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         <PrimaryButton
           text={isSubmitting ? 'Submitting...' : 'Submit Proof'}
           onPress={handleSubmit}
@@ -290,13 +220,6 @@ export const ProofOfDeliveryScreen: React.FC<ProofOfDeliveryScreenProps> = ({
   );
 };
 
-const DenominationRow: React.FC<{ text: string }> = ({ text }) => (
-  <View style={styles.denomRow}>
-    <Text style={styles.checkIcon}>☑</Text>
-    <Text style={styles.denomText}>{text}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -308,37 +231,6 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     padding: 20,
-  },
-  photoPreview: {
-    width: 150,
-    height: 150,
-    borderRadius: 16,
-    resizeMode: 'cover',
-  },
-  signatureActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  signatureButton: {
-    borderWidth: 1,
-    borderColor: Colors.CardBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  signatureSavedText: {
-    ...Typography.bodySmall,
-    color: Colors.PrimaryGreen,
-    marginTop: 8,
-  },
-  signatureBox: {
-    height: 180,
-    borderWidth: 1,
-    borderColor: Colors.CardBorder,
-    borderRadius: 12,
-    overflow: 'hidden',
   },
   greenLabel: {
     ...Typography.labelMedium,
@@ -376,11 +268,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  checkIcon: {
-    fontSize: 20,
-    color: Colors.PrimaryGreen,
-    marginRight: 8,
-  },
   confirmText: {
     ...Typography.bodyMedium,
     color: Colors.White,
@@ -390,14 +277,6 @@ const styles = StyleSheet.create({
     ...Typography.titleMedium,
     color: Colors.White,
     fontWeight: '600',
-  },
-  denomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  denomText: {
-    ...Typography.bodyMedium,
-    color: Colors.White,
   },
   headerRow: {
     flexDirection: 'row',
@@ -430,21 +309,8 @@ const styles = StyleSheet.create({
   },
   photoRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
-  },
-  photo1: {
-    width: 150,
-    height: 150,
-    backgroundColor: 'rgba(114, 28, 184, 0.4)',
-    borderWidth: 1,
-    borderColor: 'rgba(114, 28, 184, 0.6)',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  photo1Text: {
-    ...Typography.bodySmall,
-    color: Colors.PrimaryGreen,
   },
   photo2: {
     width: 150,
@@ -464,8 +330,21 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.TextSecondary,
   },
+  signatureBox: {
+    height: 120,
+    backgroundColor: Colors.White,
+    borderWidth: 1,
+    borderColor: Colors.CardBorder,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   signText: {
     ...Typography.bodyMedium,
     color: Colors.TextDim,
   },
+  preview: { width: 104, height: 104, borderRadius: 12 },
+  receiverInput: { color: Colors.White, marginBottom: 8 },
+  error: { color: Colors.AccentRed, marginBottom: 8 },
 });
