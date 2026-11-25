@@ -19,4 +19,14 @@ buildscript {
     }
 }
 
+// The camera library pins API 35. Build it with the app's installed compile SDK.
+def imagePicker = findProject(":react-native-image-picker")
+if (imagePicker != null) {
+    imagePicker.pluginManager.withPlugin("com.android.library") {
+        imagePicker.extensions.getByName("androidComponents").finalizeDsl { androidDsl ->
+            androidDsl.compileSdk = rootProject.ext.compileSdkVersion
+        }
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"

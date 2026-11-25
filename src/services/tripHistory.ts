@@ -3,6 +3,9 @@ import { apiRequest } from './api';
 import type { HistoryTrip } from '../types';
 
 interface BackendTrip {
+    timeline?: HistoryTrip['timeline'];
+    arrivedPickupAt?: string | null;
+    arrivedDropoffAt?: string | null;
     id: string;
     date: string;
     branch: string;
@@ -35,6 +38,7 @@ function formatDate(date: string): string {
     return parsed.toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
+        year: 'numeric',
     });
 }
 
@@ -52,7 +56,9 @@ function mapBackendTrip(item: BackendTrip): HistoryTrip {
         team: `Team ${item.teamId}`,
         duration,
         onTime: item.onTime,
-        timeline: [],
+        timeline: item.timeline ?? [],
+        arrivedPickupAt: item.arrivedPickupAt,
+        arrivedDropoffAt: item.arrivedDropoffAt,
     };
 }
 

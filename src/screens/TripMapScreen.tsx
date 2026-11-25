@@ -15,7 +15,8 @@ import Geolocation from 'react-native-geolocation-service';
 import { Map, Camera, Marker, GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import { PrimaryButton } from '../components';
 import { Colors, Typography } from '../theme';
-import { apiRequest } from '../services/api';
+import { useIsFocused } from '@react-navigation/native';
+import { ApiError, apiRequest } from '../services/api';
 import { getToken } from '../services/authStorage';
 import { useApp } from '../store/data';
 
@@ -68,7 +69,17 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
   onArrived,
 }) => {
   const showDialog = useAppDialog();
-  const { currentTrip } = useApp();
+  const { currentTrip, refreshData } = useApp();
+  const isFocused = useIsFocused();
+  const uploadTripReference = !isPickup && isFocused && currentTrip?.status === 'In Transit'
+    ? currentTrip.id
+    : null;
+  const uploadTripRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    uploadTripRef.current = uploadTripReference;
+    return () => { uploadTripRef.current = null; };
+  }, [uploadTripReference]);
   const tripReference = currentTrip?.id;
   useEffect(() => {
     console.log(
@@ -249,8 +260,9 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           console.log('[GPS] Updated GPS:', latitude, longitude);
 
           // Send a location ping at most once every 10 seconds.
+          const activeTripReference = uploadTripRef.current;
           const nowMs = Date.now();
-          if (!tripReference || nowMs - lastLocationSentAtRef.current < 10_000) {
+          if (!activeTripReference || nowMs - lastLocationSentAtRef.current < 10_000) {
             return;
           }
 
@@ -259,14 +271,14 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           void (async () => {
             try {
               const token = await getToken();
-              if (!token) return;
+              if (!token || uploadTripRef.current !== activeTripReference) return;
               console.log('[GPS] Sending location ping', {
-                tripReference,
+                tripReference: activeTripReference,
                 latitude,
                 longitude,
               });
               await apiRequest(
-                `/trips/${tripReference}/location`,
+                `/trips/${encodeURIComponent(activeTripReference)}/location`,
                 {
                   method: 'POST',
                   body: JSON.stringify({
@@ -279,7 +291,13 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
               );
               console.log('[GPS] Backend accepted location ping');
             } catch (error) {
-              console.error('[GPS] Failed to save location:', error);
+              if (error instanceof ApiError && error.status === 409) {
+                if (uploadTripRef.current === activeTripReference) {
+                  void refreshData();
+                }
+                return;
+              }
+              console.warn('[GPS] Failed to save location:', error);
             }
           })();
         },
@@ -301,7 +319,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
     } finally {
       isStartingRef.current = false;
     }
-  }, [showDialog]);
+  }, [showDialog, refreshData]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -442,7 +460,10 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
 
   }, [tripDetails]);
   //for arrival pickup dropoff button 
-  const handleArrivedPress = () => {
+  const arrivalPending = useRef(false);
+  const [isSavingArrival, setIsSavingArrival] = useState(false);
+  const handleArrivedPress = async () => {
+    if (arrivalPending.current) return;
     if (!currentLocation || !activeLocation) {
       showDialog(
         'Location Not Ready',
@@ -470,7 +491,26 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
       return;
     }
 
-    onArrived(tripDetails.cashRequestId, currentLocation);
+    arrivalPending.current = true;
+    setIsSavingArrival(true);
+    try {
+      await apiRequest<void>(`/trips/${encodeURIComponent(tripDetails.id)}/arrival`, {
+        method: 'POST',
+        body: JSON.stringify({
+          stage: isPickup ? 'pickup' : 'dropoff',
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        }),
+      });
+      if (isMountedRef.current) onArrived(tripDetails.cashRequestId, currentLocation);
+    } catch (error) {
+      if (isMountedRef.current) {
+        showDialog('Unable to record arrival', error instanceof Error ? error.message : 'Please try again.');
+      }
+    } finally {
+      arrivalPending.current = false;
+      if (isMountedRef.current) setIsSavingArrival(false);
+    }
   };
   return (
     <View style={styles.container}>
@@ -580,6 +620,7 @@ export const TripMapScreen: React.FC<TripMapScreenProps> = ({
           <View style={{ height: 12 }} />
           <PrimaryButton
             text={arrivedText}
+            loading={isSavingArrival}
             onPress={handleArrivedPress}
           />
 

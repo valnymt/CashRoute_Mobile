@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
 import { AuraBackground, GlassCard, TopBar } from '../components';
 import { Colors, Typography } from '../theme';
@@ -15,28 +15,23 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
   tripId,
 }) => {
   const { tripHistory } = useApp();
-  const trip = tripHistory.find(t => t.id === tripId) || tripHistory[0];
+  const trip = tripId ? tripHistory.find(t => t.id === tripId) : tripHistory[0];
 
   const headerAnim = useAnimatedMount(0, 400);
   const card1Anim = useAnimatedMount(100, 400);
   const card2Anim = useAnimatedMount(200, 400);
   const card3Anim = useAnimatedMount(300, 400);
 
-  const timelineAnims = useRef(
-    trip.timeline.map(() => new Animated.Value(0)),
-  ).current;
-
-  useEffect(() => {
-    const animations = timelineAnims.map((anim, i) =>
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 400,
-        delay: 400 + i * 150,
-        useNativeDriver: true,
-      }),
+  if (!trip) {
+    return (
+      <AuraBackground>
+        <View style={styles.container}>
+          <TopBar title="Trip details" onBackClick={onBackClick} />
+          <Text style={styles.detailLabel}>Trip details unavailable.</Text>
+        </View>
+      </AuraBackground>
     );
-    Animated.stagger(0, animations).start();
-  }, [timelineAnims]);
+  }
 
   return (
     <AuraBackground>
@@ -55,10 +50,12 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
 
           <Animated.View style={card1Anim}>
             <GlassCard>
-              <DetailRow label="Date" value={trip.date + ' 2026'} showBorder />
+              <DetailRow label="Date" value={trip.date} showBorder />
               <DetailRow label="Type" value={trip.type} showBorder />
               <DetailRow label="Amount" value={trip.amount} showBorder />
               <DetailRow label="Team" value={trip.team} showBorder />
+              <DetailRow label="Pickup arrival" value={formatTimestamp(trip.arrivedPickupAt)} showBorder />
+              <DetailRow label="Drop-off arrival" value={formatTimestamp(trip.arrivedDropoffAt)} showBorder />
               <View style={styles.durationRow}>
                 <Text style={styles.detailLabel}>Duration</Text>
                 <View style={styles.durationRight}>
@@ -80,29 +77,18 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
               <View style={styles.timelineCard}>
                 <Text style={styles.timelineLabel}>TIMELINE</Text>
                 <View style={{ height: 12 }} />
+                {trip.timeline.length === 0 && <Text style={styles.detailLabel}>No trip events recorded.</Text>}
                 {trip.timeline.map((item, i) => (
-                  <Animated.View
-                    key={i}
-                    style={[styles.timelineItem, {
-                      opacity: timelineAnims[i] ?? 1,
-                      transform: [{
-                        translateX: (timelineAnims[i] ?? new Animated.Value(1)).interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [-20, 0],
-                        }),
-                      }],
-                    }]}>
+                  <View key={item.label} style={styles.timelineItem}>
                     <View style={[
                       styles.timelineDot,
                       i === trip.timeline.length - 1 && trip.status === 'Cancelled' && styles.timelineDotRed,
                     ]} />
-                    <Text style={[
-                      styles.timelineText,
-                      i === trip.timeline.length - 1 && trip.status === 'Cancelled' && styles.timelineTextRed,
-                    ]}>
-                      {item.label}
-                    </Text>
-                  </Animated.View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.timelineText, i === trip.timeline.length - 1 && trip.status === 'Cancelled' && styles.timelineTextRed]}>{item.label}</Text>
+                      {item.at && <Text style={styles.detailLabel}>{formatTimestamp(item.at)}</Text>}
+                    </View>
+                  </View>
                 ))}
               </View>
             </GlassCard>
@@ -126,6 +112,15 @@ export const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({
     </AuraBackground>
   );
 };
+
+function formatTimestamp(value?: string | null): string {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  return date.toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}
 
 const DetailRow: React.FC<{
   label: string;

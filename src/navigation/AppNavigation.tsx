@@ -59,7 +59,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
   onLogout, pendingNotificationId, onNotificationHandled, foregroundNotificationId, onDismissForegroundNotification,
 }) => {
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
-  const { currentTrip } = useApp();
+  const { currentTrip, refreshData } = useApp();
   const openPending = useCallback(() => {
     if (!isSignedIn || !pendingNotificationId || !navigationRef.isReady()) return;
     navigationRef.navigate('NotificationDetail', { id: pendingNotificationId });
@@ -158,7 +158,10 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
                   cashRequestId={route.params.cashRequestId}
                   currentLocation={route.params.currentLocation}
                   onBackClick={() => navigation.goBack()}
-                  onVerified={() => navigation.navigate('PickupVerified')}
+                  onVerified={() => {
+                    void refreshData();
+                    navigation.navigate('PickupVerified');
+                  }}
                 />
               )}
             </Stack.Screen>

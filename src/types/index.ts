@@ -77,7 +77,9 @@ export interface HistoryTrip {
   team: string;
   duration: string;
   onTime: boolean;
-  timeline: { label: string }[];
+  timeline: { label: string; at?: string }[];
+  arrivedPickupAt?: string | null;
+  arrivedDropoffAt?: string | null;
 }
 
 export interface TeamMember {
