@@ -34,7 +34,7 @@ export const RequestCompletedScreen: React.FC<RequestCompletedScreenProps> = ({
         <View style={{ height: 48 }} />
 
         <Animated.View style={contentAnim}>
-          <Text style={styles.title}>Request completed</Text>
+          <Text style={styles.title}>Delivery completed</Text>
           <Text style={styles.subtitle}>
             {currentTrip.id} · {currentTrip.currency} {currentTrip.amount} delivered to {currentTrip.dropOffName}.
           </Text>
